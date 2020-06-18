@@ -1,4 +1,5 @@
-options(shiny.maxRequestSize=30*1024^2)
+options(shiny.maxRequestSize=1000*1024^2)
+
 
 source("pairwise_intersect.R")
 
@@ -538,7 +539,7 @@ shinyServer(function(input, output, session) {
       else
         pdf(file, width = width/100, height = height/100, onefile=FALSE)
       
-      upset(data = My_data(), 
+      print(upset(data = My_data(), 
             nintersects = input$nintersections,
             point.size = input$pointsize,
             line.size = line_size(),
@@ -558,6 +559,7 @@ shinyServer(function(input, output, session) {
             text.scale = c(input$intersection_title_scale, input$intersection_ticks_scale,
                            input$set_title_scale, input$set_ticks_scale, input$names_scale,
                            input$intersection_size_numbers_scale))
+      )
       
       dev.off()
     }

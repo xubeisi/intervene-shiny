@@ -70,11 +70,19 @@ bodyVenn <- tabItem(tabName = "venn",
           h2("Venn diagrams"),
           
           fluidRow(
-            box( title = "Data upload & settings", width = 4, status = "warning",
+            box( status = "warning", width = 4,
                  tabBox(
                    id = "venntab", height = "100%", width = "100%",
                    
                    tabPanel("Upload",
+                            radioButtons('venn_input_type',
+                                         label ='Input type ',
+                                         choices = c(
+                                           "List of Genes/SNPs" = 'list',
+                                           "Binary data (0 & 1)" = 'binary'
+                                         ),
+                                         selected = 'list'
+                            ),
                             fileInput(
                               'file_venn',
                               label = "Upload file",
@@ -99,7 +107,8 @@ bodyVenn <- tabItem(tabName = "venn",
                               selected = ','
                             ),
                             br(),
-                            HTML("<hr> <a href='Whyte_et_al_2013_SEs_genes.csv'> <i class='fa fa-download'> </i> List example data</a>")
+                            HTML("<hr> <a href='Whyte_et_al_2013_SEs_genes.csv'> <i class='fa fa-download'> </i> List example data</a>"),
+                            HTML("<a href='mutations_glioblastoma_TCGA.csv'> <i class='fa fa-download'> </i> Binary example data</a>")
                             
                             #textAreaInput('venn_comb', label = "OR enter Venn combinations", rows = 4, placeholder = "Enter combinations of sets to plot"),
                             #p("For example:  A=12, B=12, C=5, A&B=4, A&C=2, B&C=1, A&B&C=2"),
@@ -271,8 +280,8 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                      label ='Separator',
                                      choices = c(
                                        Comma = ',',
-                                       Semicolon = ';',
-                                       Tab = '\t'
+                                       Tab = '\t',
+                                       Semicolon = ';'
                                      ),
                                      selected = ','
                                    ),
@@ -482,7 +491,7 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
 bodyPairwise <- tabItem(tabName = "pairwise",
                     h2("Pairwise intersection heatmap"),
                     fluidRow(
-                      box( title = "Data upload & settings", width = 4, status = "warning",
+                      box( status = "warning", width = 4,
                         tabBox(
                             id = "pairwisetab", height = "100%", width = "100%",
                           
@@ -511,8 +520,8 @@ bodyPairwise <- tabItem(tabName = "pairwise",
                                      'sep_p',
                                      label = 'Separator',
                                      choices = c(
-                                       Tab = "\t",
                                        Comma = ",",
+                                       Tab = "\t",
                                        Semicolon = ";"
                                      ),
                                      selected = "\t"

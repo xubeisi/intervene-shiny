@@ -10,7 +10,7 @@ shinyServer(function(input, output, session) {
   library(htmlwidgets)
   library(gplots)
   library(dendextend)
-
+  
   
   #====================================================#
   ## Venn module ####
@@ -72,52 +72,56 @@ shinyServer(function(input, output, session) {
   })
   
   
- 
+  
   venn_data <- reactive({
     inFile <- input$file_venn
     #string <- input$venn_comb
     string <- ""
-    
+    input_type <- input$venn_input_type
     if(is.null(inFile) == F)
     {
-      #data <- read.csv(input$file_venn$datapath, header = input$header_venn, sep = input$sep_venn)
-      data <- read_delim(input$file_venn$datapath, input$sep_venn , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_venn)
-      data <- lapply(data, function(x) x[!is.na(x)])
-      return(data)
+      if (input_type == 'list'){
+        data <- read_delim(input$file_venn$datapath, input$sep_venn , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_venn)
+        data <- lapply(data, function(x) x[!is.na(x)])
+        return(data)
+      } else if (input_type == 'binary'){
+        data <- read.csv(input$file_venn$datapath, header = input$header_venn,
+                         sep = input$sep_venn, quote = input$quote)
+        data <- lapply(data, function(x) as.character(data[,1][x>0]))
+        data[[1]] <- NULL
+        return(data)
+      }
     }else{
       if (string != "")
-       {
-         string <- gsub("\n", "", string)
-         if(string != ""){
-           string <- as.list(unlist(strsplit(string, ",")))
-           names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
-           names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
-           vennData <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
-           names(vennData) <- names
-           return(vennData)
-         }else{
-           return(NULL)
-         }
-       }
-       else{
-      #data <- read.csv('data/Whyte_et_al_2013_SEs_genes.csv', header = TRUE, sep = ',')
-      data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
-      return(lapply(data, function(x) x[!is.na(x)]))
+      {
+        string <- gsub("\n", "", string)
+        if(string != ""){
+          string <- as.list(unlist(strsplit(string, ",")))
+          names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
+          names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
+          vennData <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
+          names(vennData) <- names
+          return(vennData)
+        }else{
+          return(NULL)
+        }
+      }
+      else{
+        data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
+        return(lapply(data, function(x) x[!is.na(x)]))
       }
     }
   })
   
   set_names <- reactive({
-    #names <- colnames(venn_data())
     names <- names(venn_data())
-    #names <- sort(names)
     return(names)
   })
   
   output$venn_sets <- renderUI({
     venn_sets <- selectInput('venn_sets', label = "Select sets",
-                         choices = as.character(set_names()),
-                         multiple = T, selectize = T, selected = as.character(set_names()[1:5]))
+                             choices = as.character(set_names()),
+                             multiple = T, selectize = T, selected = as.character(set_names()[1:3]))
     return(venn_sets)
   })
   
@@ -129,22 +133,22 @@ shinyServer(function(input, output, session) {
     
     data <- venn_data()
     if(is.null(input$venn_sets)){
-      
+      data <- data[names(data)[1:3]]
+      return(data)
     }else{
       data <- data[c(venn_selected_names())]
       return(data)
     }
     return(data)
   })
-
+  
   venn_combinations <- reactive({
     #string <- input$venn_comb
     string <- ""
     data <- venn_data_filtered()
     if (string !=""){
       return(data)
-    }else
-    {
+    } else {
       return(Venn(data))
     }
   })
@@ -170,16 +174,16 @@ shinyServer(function(input, output, session) {
       venn_gp$SetText$Set4$col <- set4_color()
       venn_gp$SetText$Set5$col <- set5_color()
       venn_gp$SetText$Set6$col <- set6_color()
- 
+      
     }
     
     return(venn_gp)
   })
   
   data_size <- reactive({
-      return(length(venn_data_filtered()))
+    return(length(venn_data_filtered()))
   })
-
+  
   get_venn_type <- reactive({
     if (venn_type() == 'Classical'){
       if(data_size() < 4)
@@ -189,20 +193,20 @@ shinyServer(function(input, output, session) {
     }else if (venn_type() == 'ChowRuskey' && data_size() < 3){
       return("circles")
     }
-      else{
+    else{
       return(venn_type())
     }
   })
-
+  
   output$vennPlot <- renderPlot({
     plot(compute.Venn(venn_combinations(), doWeights = doWeights(), doEuler = doEuler(), type = get_venn_type()),
-    gp = get_venn_gp(),
-    show = list(Universe = FALSE)
+         gp = get_venn_gp(),
+         show = list(Universe = FALSE)
     )
-      },
-      width = venn_size,
-      height = venn_size,
-      outputArgs = list()
+  },
+  width = venn_size,
+  height = venn_size,
+  outputArgs = list()
   )
   
   output$VennDown <- downloadHandler(
@@ -242,7 +246,7 @@ shinyServer(function(input, output, session) {
   #====================================================#
   #Some of the code for upset module is taken from
   #https://github.com/hms-dbmi/UpSetR-shiny
-
+  
   output$plot_text <- renderUI({
     if(is.null(My_data()) == T){
       h5("There is no data entered. Please upload your data to draw UpSet plot here!")
@@ -262,16 +266,16 @@ shinyServer(function(input, output, session) {
       return(My_dat)
     }
     else if(is.null(inFile) == F && input_type == 'binary'){
-      read.csv(inFile$datapath, header = input$header,
-               sep = input$sep, quote = input$quote)
-      }else if (is.null(inFile) == F && input_type == 'list'){
-        #My_dat <- fromList(convertColsToList(read.csv(inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)))
-        #removed NAs
-        #My_dat <- fromList(lapply(as.list(read.csv(inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)), function(x) x[!is.na(x)]))
-        My_dat <- read_delim(inFile$datapath, input$sep , escape_double = FALSE, trim_ws = TRUE, col_names = input$header)
-        My_dat <- fromList(lapply(as.list(My_dat), function(x) x[!is.na(x)]))
-      
-        return(My_dat)
+      My_dat <- read.csv(inFile$datapath, header = input$header,
+                         sep = input$sep, quote = input$quote)
+      return(My_dat)
+    }else if (is.null(inFile) == F && input_type == 'list'){
+      #My_dat <- fromList(convertColsToList(read.csv(inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)))
+      #removed NAs
+      #My_dat <- fromList(lapply(as.list(read.csv(inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)), function(x) x[!is.na(x)]))
+      My_dat <- read_delim(inFile$datapath, input$sep , escape_double = FALSE, trim_ws = TRUE, col_names = input$header)
+      My_dat <- fromList(lapply(as.list(My_dat), function(x) x[!is.na(x)]))
+      return(My_dat)
     }else{
       return(NULL)
     }
@@ -298,7 +302,7 @@ shinyServer(function(input, output, session) {
     }
     else {
       My_data <- My_dat()
-      }
+    }
     return(My_data)
   })
   
@@ -432,7 +436,7 @@ shinyServer(function(input, output, session) {
     sbcolor <- input$sbcolor
     return(sbcolor)
   })
-
+  
   
   decrease <- reactive({
     decrease <- as.character(input$decreasing)
@@ -506,7 +510,7 @@ shinyServer(function(input, output, session) {
     #height <- ((session$clientData$output_plot_height)*1.7)
     width = upset_width,
     height = upset_height
-    )
+  )
   
   #outputOptions(output, "plot", suspendWhenHidden = FALSE)
   
@@ -540,25 +544,25 @@ shinyServer(function(input, output, session) {
         pdf(file, width = width/100, height = height/100, onefile=FALSE)
       
       print(upset(data = My_data(), 
-            nintersects = input$nintersections,
-            point.size = input$pointsize,
-            line.size = line_size(),
-            
-            sets = Specific_sets(),
-            order.by = orderdat(),
-            main.bar.color= main_bar_color(),
-            sets.bar.color= sets_bar_color(),
-            decreasing = c(decrease()),
-            number.angles = number_angle(),
-            show.numbers = show_numbers(),
-            scale.intersections = scale.intersections(),
-            scale.sets = scale.sets(),
-            keep.order = keep.order(),
-            mb.ratio = c(as.double(bar_prop()), as.double(mat_prop())),
-            empty.intersections = emptyIntersects(),
-            text.scale = c(input$intersection_title_scale, input$intersection_ticks_scale,
-                           input$set_title_scale, input$set_ticks_scale, input$names_scale,
-                           input$intersection_size_numbers_scale))
+                  nintersects = input$nintersections,
+                  point.size = input$pointsize,
+                  line.size = line_size(),
+                  
+                  sets = Specific_sets(),
+                  order.by = orderdat(),
+                  main.bar.color= main_bar_color(),
+                  sets.bar.color= sets_bar_color(),
+                  decreasing = c(decrease()),
+                  number.angles = number_angle(),
+                  show.numbers = show_numbers(),
+                  scale.intersections = scale.intersections(),
+                  scale.sets = scale.sets(),
+                  keep.order = keep.order(),
+                  mb.ratio = c(as.double(bar_prop()), as.double(mat_prop())),
+                  empty.intersections = emptyIntersects(),
+                  text.scale = c(input$intersection_title_scale, input$intersection_ticks_scale,
+                                 input$set_title_scale, input$set_ticks_scale, input$names_scale,
+                                 input$intersection_size_numbers_scale))
       )
       
       dev.off()
@@ -616,7 +620,7 @@ shinyServer(function(input, output, session) {
   hclust_method <- reactive({
     return(input$hclust_method)
   })
-
+  
   
   tl_pos <- reactive({
     if (corplot_type() =="lower" && input$tl_pos != 'n')
@@ -626,7 +630,7 @@ shinyServer(function(input, output, session) {
     }else if(corplot_type() =="upper" && input$tl_pos != 'n'){
       return('td')
     }else{
-    return(input$tl_pos)
+      return(input$tl_pos)
     }
   })
   
@@ -678,7 +682,7 @@ shinyServer(function(input, output, session) {
   })
   
   
-
+  
   dendrogram <- reactive({
     return(input$dendrogram)
   })
@@ -700,7 +704,7 @@ shinyServer(function(input, output, session) {
   key.ylab <- reactive({
     return(input$key.ylab)
   })
-
+  
   distance <- reactive({
     if(input$distance == 'none'){
       distance= as.dist(pairwiseMatrix())    
@@ -719,7 +723,7 @@ shinyServer(function(input, output, session) {
       return(TRUE)
     }
   })
-
+  
   pairwiseMatrix <- reactive({
     inFile <- input$file_p
     isCor <- input$corp_cor
@@ -741,11 +745,11 @@ shinyServer(function(input, output, session) {
         myMatrix <- as.matrix(pairwise_intersect(lapply(as.list(read_delim(inFile$datapath, input$sep_p , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_p)), function(x) x[!is.na(x)])))
         #myMatrix <- as.matrix(pairwise_intersect(lapply(as.list(read.csv(inFile$datapath, header = input$header_p, sep=input$sep_p)), function(x) x[!is.na(x)])))
       }
-
+      
       if(isCor != 'non'){
         myMatrix <- cor(myMatrix, method=isCor)
       }
-    return(myMatrix)
+      return(myMatrix)
     }
   })
   
@@ -770,11 +774,11 @@ shinyServer(function(input, output, session) {
       return(1)
     }
   })
-
+  
   output$pairwiseTable = DT::renderDataTable(
     round(pairwiseMatrix(),2), options = list(
       lengthChange = TRUE
-      )
+    )
   )
   
   heatmap2_plot <- reactive({
@@ -787,46 +791,46 @@ shinyServer(function(input, output, session) {
     col_labels <- col_labels[order(order.dendrogram(dend1))]
     
     plt <- heatmap.2(pairwiseMatrix(),
-              scale = "none",
-              #dendrogram = "both",
-              col = heamap_colors(),
-              cexRow = tl_cex(),
-              cexCol = tl_cex(),
-              #srtRow = tl_srt(),
-              srtCol = tl_srt(),
-              Rowv = dend1, 
-              Colv = dend1, 
-              main = corplot_title(),
-              dendrogram = dendrogram(),
-              symm = symm(),
-              #revC = TRUE,
-              key = key(),
-              keysize = keysize(),
-              key.title = key.title(),
-              key.xlab =  key.xlab(),
-              key.ylab = key.ylab(),
-              key.par = list(cex=cl_cex()),
-              sepwidth = c(0.05, 0.05),  # width of the borders
-              mar=c(6,6),
-              sepcolor = addgrid_col(),
-              colsep =1:ncol(pairwiseMatrix()),
-              rowsep =1:nrow(pairwiseMatrix()),
-              #offsetRow = 0.1,
-              #offsetCol = 0.1,
-              trace="none",
-              #RowSideColors = col_labels, #colored strips        
-              colRow = col_labels,
-              ColSideColors = col_labels, #colored strips        
-              colCol = col_labels
+                     scale = "none",
+                     #dendrogram = "both",
+                     col = heamap_colors(),
+                     cexRow = tl_cex(),
+                     cexCol = tl_cex(),
+                     #srtRow = tl_srt(),
+                     srtCol = tl_srt(),
+                     Rowv = dend1, 
+                     Colv = dend1, 
+                     main = corplot_title(),
+                     dendrogram = dendrogram(),
+                     symm = symm(),
+                     #revC = TRUE,
+                     key = key(),
+                     keysize = keysize(),
+                     key.title = key.title(),
+                     key.xlab =  key.xlab(),
+                     key.ylab = key.ylab(),
+                     key.par = list(cex=cl_cex()),
+                     sepwidth = c(0.05, 0.05),  # width of the borders
+                     mar=c(6,6),
+                     sepcolor = addgrid_col(),
+                     colsep =1:ncol(pairwiseMatrix()),
+                     rowsep =1:nrow(pairwiseMatrix()),
+                     #offsetRow = 0.1,
+                     #offsetCol = 0.1,
+                     trace="none",
+                     #RowSideColors = col_labels, #colored strips        
+                     colRow = col_labels,
+                     ColSideColors = col_labels, #colored strips        
+                     colCol = col_labels
     )
-   return(plt)
+    return(plt)
   })
   
   output$heatmap2_plot_out <- renderPlot(
     heatmap2_plot(),
-                                     
-  width= heatmap_size,
-  height= heatmap_size
+    
+    width= heatmap_size,
+    height= heatmap_size
   )
   
   output$Heatmap2PlotDown <- downloadHandler(
@@ -935,11 +939,11 @@ shinyServer(function(input, output, session) {
   
   output$HeatmapHTMLDown <- downloadHandler(
     filename = function(){
-    paste("Interactive_pairwise_heatmap", "html", sep =".")
-  }, 
+      paste("Interactive_pairwise_heatmap", "html", sep =".")
+    }, 
     content = function(file){
-    saveWidget(d3HM_plot(), file)
-  }
+      saveWidget(d3HM_plot(), file)
+    }
   )
   
   output$corrplotHM <- renderPlot({
@@ -967,18 +971,18 @@ shinyServer(function(input, output, session) {
              #col = col1(300)
              #col = list(color = brewer.pal(20, "RdBu"))
              
-             )},
-  width= heatmap_size,
-  height= heatmap_size
+    )},
+    width= heatmap_size,
+    height= heatmap_size
   )
   
   output$HeatmapCSVDown <- downloadHandler(
     filename = function(){
-    paste("Pairwise_matrix", "csv", sep =".")
-  }, 
-   content = function(file){
-    write.csv(pairwiseMatrix(), file)
-  }
+      paste("Pairwise_matrix", "csv", sep =".")
+    }, 
+    content = function(file){
+      write.csv(pairwiseMatrix(), file)
+    }
   )
   
   

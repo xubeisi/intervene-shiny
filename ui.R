@@ -120,7 +120,7 @@ bodyVenn <- tabItem(tabName = "venn",
                                                     "Squares" = "squares",
                                                     "Battle" = "battle"
                                     ),
-                                    selected = "ChowRuskey"),
+                                    selected = "Classical"),
                                    
                                   checkboxInput('doWeights', label = "Weighted", value = TRUE),
                                   checkboxInput('doEuler', label = "Eular", value = FALSE),

@@ -85,7 +85,7 @@ bodyVenn <- tabItem(tabName = "venn",
                             ),
                             fileInput(
                               'file_venn',
-                              label = "Upload file",
+                              label = "Upload file or Paste below",
                               accept = c(
                                 'text/csv',
                                 'text/comma-separated-values',
@@ -97,7 +97,7 @@ bodyVenn <- tabItem(tabName = "venn",
                             checkboxInput('header_venn', label = 'Header', TRUE),
                             radioButtons(
                               'sep_venn',
-                              label = 'Separator',
+                              label = 'Separator(Tab for .tsv,Comma for .csv)',
                               #inline = TRUE,
                               choices = c(
                                 Comma = ',',
@@ -106,7 +106,23 @@ bodyVenn <- tabItem(tabName = "venn",
                               ),
                               selected = ','
                             ),
+                            radioButtons(
+                              'sep_venn_row',
+                              label = 'Split.By(Multiple genes promoters could overlap one peak, only for List format)',
+                              #inline = TRUE,
+                              choices = c(
+                                Ignore = '',
+                                Comma = ',',
+                                Tab = '\t',
+                                Semicolon = ';'
+                              ),
+                              selected = ''
+                            ),
                             br(),
+                            rHandsontableOutput("hot_venn", height = 400),
+                            br(),
+                            textAreaInput('venn_comb', label = "OR enter set combinations/expression", rows = 4, placeholder = "Enter combinations of sets to plot"),
+                            p("For example: A=3, B=3, C=2, A&B=1, A&C=2, B&C=1 ,A&B&C=1"),
                             HTML("<hr> <a href='Whyte_et_al_2013_SEs_genes.csv'> <i class='fa fa-download'> </i> List example data</a>"),
                             HTML("<a href='mutations_glioblastoma_TCGA.csv'> <i class='fa fa-download'> </i> Binary example data</a>")
                             
@@ -265,8 +281,8 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                                 selected = 'list'
                                    ),
                                    fileInput(
-                                     'file1',
-                                     label = "Upload file",
+                                     'file_upset',
+                                     label = "Upload file or Paste below",
                                      accept = c(
                                        'text/csv',
                                        'text/comma-separated-values',
@@ -275,9 +291,9 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                        '.tsv'
                                      )
                                    ),
-                                   checkboxInput('header', label = 'Header', TRUE),
-                                   radioButtons('sep',
-                                     label ='Separator',
+                                   checkboxInput('header_upset', label = 'Header', TRUE),
+                                   radioButtons('sep_upset',
+                                     label ='Separator(Tab for .tsv,Comma for .csv)',
                                      choices = c(
                                        Comma = ',',
                                        Tab = '\t',
@@ -285,8 +301,22 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                      ),
                                      selected = ','
                                    ),
-                                  #actionButton("confirm_upset", "Plot UpSet"),
-                                  textAreaInput('upset_comb', label = "OR enter set combinations/expression", rows = 4, placeholder = "Enter combinations of sets to plot"),
+                                   radioButtons(
+                                     'sep_row_upset',
+                                     label = 'Split.By(Multiple genes promoters could overlap one peak, only for List format)',
+                                     #inline = TRUE,
+                                     choices = c(
+                                       Ignore = '',
+                                       Comma = ',',
+                                       Tab = '\t',
+                                       Semicolon = ';'
+                                     ),
+                                     selected = ''
+                                   ),
+                                   br(),
+                                   rHandsontableOutput("hot_upset", height = 400),
+                                   br(),
+                                   textAreaInput('comb_upset', label = "OR enter set combinations/expression", rows = 4, placeholder = "Enter combinations of sets to plot"),
                                   p("For example: A=3, B=3, C=2, A&B=1, A&C=2, B&C=1 ,A&B&C=1"),
                                   #actionLink("confirm_upset_demo", "Or load demo data")
                                   

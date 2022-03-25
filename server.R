@@ -1,17 +1,32 @@
 options(shiny.maxRequestSize=1000*1024^2)
 
+#devtools::install_github("jrowen/rhandsontable")
 
 source("pairwise_intersect.R")
+library(RColorBrewer)
+library(htmlwidgets)
+library(gplots)
+library(dendextend)
+library(rhandsontable)
 
 #sever code
 shinyServer(function(input, output, session) {
   
-  library(RColorBrewer)
-  library(htmlwidgets)
-  library(gplots)
-  library(dendextend)
+
   
+  output$hot_venn = renderRHandsontable({
+    test <- isolate(venn_data())
+    test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
+    test <- rbind(names(test),test)
+    rhandsontable(test,colHeaders=NULL)
+  })
   
+  output$hot_upset = renderRHandsontable({
+    test <- isolate(upset_data())
+    test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
+    test <- rbind(names(test),test)
+    rhandsontable(test,colHeaders=NULL)
+  })
   #====================================================#
   ## Venn module ####
   #====================================================#
@@ -75,41 +90,44 @@ shinyServer(function(input, output, session) {
   
   venn_data <- reactive({
     inFile <- input$file_venn
-    #string <- input$venn_comb
-    string <- ""
+    string <- input$venn_comb
+    string <- gsub("\n", "", string)
     input_type <- input$venn_input_type
-    if(is.null(inFile) == F)
-    {
+
+    if(string != ""){
+      string <- as.list(unlist(strsplit(string, ",")))
+      names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
+      names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
+      values <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
+      names(values) <- names
+      venneuler <- fromExpression(values)
+      venneuler <- lapply(venneuler, function(x) as.character(row.names(venneuler)[x>0])) # df to list
+      return(venneuler)
+    } else if(is.null(inFile) == F){
       if (input_type == 'list'){
         data <- read_delim(input$file_venn$datapath, input$sep_venn , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_venn)
         data <- lapply(data, function(x) x[!is.na(x)])
-        return(data)
       } else if (input_type == 'binary'){
         data <- read.csv(input$file_venn$datapath, header = input$header_venn,
                          sep = input$sep_venn, quote = input$quote)
         data <- lapply(data, function(x) as.character(data[,1][x>0]))
         data[[1]] <- NULL
-        return(data)
       }
+      return(data)
+    }else if (!is.null(input$hot_venn)) {
+      data = hot_to_r(input$hot_venn)
+      names(data) <- data[1,,drop=F]
+      data <- data[-1,]
+      if (input_type == 'list'){
+        data <- lapply(data, function(x) x[!is.na(x)])
+      } else if (input_type == 'binary'){
+        data <- lapply(data, function(x) as.character(data[,1][x>0]))
+        data[[1]] <- NULL
+      }
+      return(data)
     }else{
-      if (string != "")
-      {
-        string <- gsub("\n", "", string)
-        if(string != ""){
-          string <- as.list(unlist(strsplit(string, ",")))
-          names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
-          names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
-          vennData <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
-          names(vennData) <- names
-          return(vennData)
-        }else{
-          return(NULL)
-        }
-      }
-      else{
-        data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
-        return(lapply(data, function(x) x[!is.na(x)]))
-      }
+      data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
+      return(lapply(data, function(x) x[!is.na(x)]))
     }
   })
   
@@ -248,7 +266,7 @@ shinyServer(function(input, output, session) {
   #https://github.com/hms-dbmi/UpSetR-shiny
   
   output$plot_text <- renderUI({
-    if(is.null(My_data()) == T){
+    if(is.null(upset_data()) == T){
       h5("There is no data entered. Please upload your data to draw UpSet plot here!")
     }
     else{
@@ -256,54 +274,35 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  My_dat <- reactive({  
-    inFile <- input$file1
-    input_type = input$upset_input_type
-    if (is.null(inFile) == T){
-      
-      My_dat<- fromExpression(c('H3K4me2&H3K4me3'=16321,'H3K4me2&H3K4me3&H3K27me3'=5756,'H3K27me3'=25174,'H3K4me3&H3K27me3'=15539,'H3K4me3'=32964,'H3K4me2&H3K27me3'=19039,'H3K4me2'=60299,'H3K27ac&H3K4me2&H3K4me3&H3K27me3'=7235,'H3K27ac&H3K4me2&H3K4me3'=17505,'H3K27ac&H3K4me2'=21347,'H3K27ac&H3K4me2&H3K27me3'=1698,'H3K27ac&H3K4me3'=8134,'H3K27ac&H3K4me3&H3K27me3'=295,'H3K27ac&H3K27me3'=7605,'H3K27ac'=42164))
-      #read.csv("data/ENCODE_hESC_HMs.txt", header = TRUE, sep = '\t')
-      return(My_dat)
-    }
-    else if(is.null(inFile) == F && input_type == 'binary'){
-      My_dat <- read.csv(inFile$datapath, header = input$header,
-                         sep = input$sep, quote = input$quote)
-      return(My_dat)
-    }else if (is.null(inFile) == F && input_type == 'list'){
-      #My_dat <- fromList(convertColsToList(read.csv(inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)))
-      #removed NAs
-      #My_dat <- fromList(lapply(as.list(read.csv(inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)), function(x) x[!is.na(x)]))
-      My_dat <- read_delim(inFile$datapath, input$sep , escape_double = FALSE, trim_ws = TRUE, col_names = input$header)
-      My_dat <- fromList(lapply(as.list(My_dat), function(x) x[!is.na(x)]))
-      return(My_dat)
-    }else{
-      return(NULL)
-    }
-  })
-  
-  venneulerData <- reactive({
-    string <- input$upset_comb
+  upset_data <- reactive({  
+    inFile <- input$file_upset
+    string <- input$comb_upset
     string <- gsub("\n", "", string)
+    input_type <- input$upset_input_type
+    
     if(string != ""){
       string <- as.list(unlist(strsplit(string, ",")))
       names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
       names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
       values <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
       names(values) <- names
-      venneuler <- fromExpression(values)
-      return(venneuler)
+      data <- fromExpression(values)
+    } else if(is.null(inFile) == F){
+      if (input_type == 'list'){
+        data <- read_delim(inFile$datapath, input$sep_upset , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_upset)
+        data <- fromList(lapply(as.list(data), function(x) x[!is.na(x)]))
+      } else if (input_type == 'binary'){
+        data <- read.csv(inFile$datapath, header = input$header_upset,
+                         sep = input$sep_upset, quote = input$quote)
+      }
+    }else if (!is.null(input$hot_upset)) {
+      data = hot_to_r(input$hot_upset)
+      names(data) <- data[1,,drop=F]
+      data <- data[-1,]
+    }else{
+      data<- fromExpression(c('H3K4me2&H3K4me3'=1632,'H3K4me2&H3K4me3&H3K27me3'=575,'H3K27me3'=2517,'H3K4me3&H3K27me3'=1553,'H3K4me3'=3296,'H3K4me2&H3K27me3'=1903,'H3K4me2'=6029,'H3K27ac&H3K4me2&H3K4me3&H3K27me3'=723,'H3K27ac&H3K4me2&H3K4me3'=1750,'H3K27ac&H3K4me2'=2134,'H3K27ac&H3K4me2&H3K27me3'=169,'H3K27ac&H3K4me3'=813,'H3K27ac&H3K4me3&H3K27me3'=29,'H3K27ac&H3K27me3'=760,'H3K27ac'=4216))
     }
-  })
-  
-  My_data <- reactive({
-    string <- input$upset_comb
-    if(string != ""){
-      My_data <- venneulerData()
-    }
-    else {
-      My_data <- My_dat()
-    }
-    return(My_data)
+    return(data)
   })
   
   FindStartEnd <- function(data){
@@ -334,12 +333,12 @@ shinyServer(function(input, output, session) {
   }
   
   startEnd <- reactive({
-    startEnd <- FindStartEnd(My_data())
+    startEnd <- FindStartEnd(upset_data())
   })
   
   setSizes <- reactive({
-    if(is.null(My_data()) != T){
-      sizes <- colSums(My_data()[startEnd()[1]:startEnd()[2]])
+    if(is.null(upset_data()) != T){
+      sizes <- colSums(upset_data()[startEnd()[1]:startEnd()[2]])
       sizes <- sizes[order(sizes, decreasing = T)]
       
       names <- names(sizes); sizes <- as.numeric(sizes);
@@ -373,17 +372,17 @@ shinyServer(function(input, output, session) {
   })
   
   output$sets <- renderUI({
-    if(is.null(My_data()) == T){
+    if(is.null(upset_data()) == T){
       sets <-  selectInput('upset_sets', label="Select at least two sets ",
                            choices = NULL,
                            multiple=TRUE, selectize=TRUE, selected = Specific_sets())
     }
     else{
-      data <- My_data()[startEnd()[1]:startEnd()[2]]
+      data <- upset_data()[startEnd()[1]:startEnd()[2]]
       topfive <- colSums(data)
       topfive <- as.character(head(names(topfive[order(topfive, decreasing = T)]), 5))
       sets <- selectInput('upset_sets', label="Select sets ",
-                          choices = as.character(colnames(My_data()[ , startEnd()[1]:startEnd()[2]])),
+                          choices = as.character(colnames(upset_data()[ , startEnd()[1]:startEnd()[2]])),
                           multiple=TRUE, selectize=TRUE, selected = topfive)
     }
     return(sets)
@@ -483,11 +482,11 @@ shinyServer(function(input, output, session) {
   # A plot of fixed size
   output$plot1 <- renderPlot({
     
-    if(length(My_data()) == 0){stop()}
+    if(length(upset_data()) == 0){stop()}
     if(length(Specific_sets()) == 1){
       stop()
     }
-    upset(data = My_data(), 
+    upset(data = upset_data(), 
           nintersects = input$nintersections,
           point.size = input$pointsize,
           line.size = line_size(),
@@ -543,7 +542,7 @@ shinyServer(function(input, output, session) {
       else
         pdf(file, width = width/100, height = height/100, onefile=FALSE)
       
-      print(upset(data = My_data(), 
+      print(upset(data = upset_data(), 
                   nintersects = input$nintersections,
                   point.size = input$pointsize,
                   line.size = line_size(),

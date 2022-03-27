@@ -101,8 +101,7 @@ shinyServer(function(input, output, session) {
       values <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
       names(values) <- names
       venneuler <- fromExpression(values)
-      venneuler <- lapply(venneuler, function(x) as.character(row.names(venneuler)[x>0])) # df to list
-      return(venneuler)
+      data <- lapply(venneuler, function(x) as.character(row.names(venneuler)[x>0])) # df to list
     } else if(is.null(inFile) == F){
       if (input_type == 'list'){
         data <- read_delim(input$file_venn$datapath, input$sep_venn , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_venn)
@@ -113,7 +112,6 @@ shinyServer(function(input, output, session) {
         data <- lapply(data, function(x) as.character(data[,1][x>0]))
         data[[1]] <- NULL
       }
-      return(data)
     }else if (!is.null(input$hot_venn)) {
       data = hot_to_r(input$hot_venn)
       names(data) <- data[1,,drop=F]
@@ -124,11 +122,15 @@ shinyServer(function(input, output, session) {
         data <- lapply(data, function(x) as.character(data[,1][x>0]))
         data[[1]] <- NULL
       }
-      return(data)
     }else{
       data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
-      return(lapply(data, function(x) x[!is.na(x)]))
+      data <- lapply(data, function(x) x[!is.na(x)])
     }
+    if (input$sep_venn_row != "")
+    {
+      data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_venn_row))))
+    }
+    return(data)
   })
   
   set_names <- reactive({
@@ -291,6 +293,10 @@ shinyServer(function(input, output, session) {
       if (input_type == 'list'){
         data <- read_delim(inFile$datapath, input$sep_upset , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_upset)
         data <- fromList(lapply(as.list(data), function(x) x[!is.na(x)]))
+        if (input$sep_row_upset != "")
+        {
+          data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_upset))))
+        }
       } else if (input_type == 'binary'){
         data <- read.csv(inFile$datapath, header = input$header_upset,
                          sep = input$sep_upset, quote = input$quote)

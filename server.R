@@ -9,23 +9,49 @@ library(gplots)
 library(dendextend)
 library(rhandsontable)
 
+myisna <- function(x){
+  is.na(x) | x == '.'
+}
+
+#' List of named vectors to UpSetR converter
+#' 
+#' @description A function to convert a list of named vectors to a data frame compatible with UpSetR.
+#' @param input A list of named vectors to be converted to a data frame compatible with UpSetR
+#' @note See "Basic Usage" vignette for an example on how to use this function in UpSetR.
+#' @export 
+fromList <- function(input){
+  elements <- unique(unlist(input))
+  data <- unlist(lapply(input, function(x){x <- as.vector(match(elements, x))}))
+  data[myisna(data)] <- as.integer(0); data[data != 0] <- as.integer(1)
+  data <- data.frame(matrix(data, ncol = length(input), byrow = F))
+  data <- data[which(rowSums(data) !=0), ]
+  names(data) <- names(input)
+  row.names(data) <- elements
+  return(data)
+}
+
 #sever code
 shinyServer(function(input, output, session) {
   
-
+  
   
   output$hot_venn = renderRHandsontable({
-    test <- isolate(venn_data())
+    test <- venn_data()
+    ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
     test <- rbind(names(test),test)
-    rhandsontable(test,colHeaders=NULL)
+    names(test) <- paste("V",1:ncol,sep="")
+    rhandsontable(test)
   })
   
   output$hot_upset = renderRHandsontable({
-    test <- isolate(upset_data())
+    test <- upset_data()
+    test <- lapply(test, function(x) as.character(row.names(test)[x>0])) 
+    ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
     test <- rbind(names(test),test)
-    rhandsontable(test,colHeaders=NULL)
+    names(test) <- paste("V",1:ncol,sep="")
+    rhandsontable(test)
   })
   #====================================================#
   ## Venn module ####
@@ -93,7 +119,7 @@ shinyServer(function(input, output, session) {
     string <- input$venn_comb
     string <- gsub("\n", "", string)
     input_type <- input$venn_input_type
-
+    
     if(string != ""){
       string <- as.list(unlist(strsplit(string, ",")))
       names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
@@ -105,7 +131,7 @@ shinyServer(function(input, output, session) {
     } else if(is.null(inFile) == F){
       if (input_type == 'list'){
         data <- read_delim(input$file_venn$datapath, input$sep_venn , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_venn)
-        data <- lapply(data, function(x) x[!is.na(x)])
+        data <- lapply(data, function(x) x[!myisna(x)])
       } else if (input_type == 'binary'){
         data <- read.csv(input$file_venn$datapath, header = input$header_venn,
                          sep = input$sep_venn, quote = input$quote)
@@ -117,14 +143,14 @@ shinyServer(function(input, output, session) {
       names(data) <- data[1,,drop=F]
       data <- data[-1,]
       if (input_type == 'list'){
-        data <- lapply(data, function(x) x[!is.na(x)])
+        data <- lapply(data, function(x) x[!myisna(x)])
       } else if (input_type == 'binary'){
         data <- lapply(data, function(x) as.character(data[,1][x>0]))
         data[[1]] <- NULL
       }
     }else{
       data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
-      data <- lapply(data, function(x) x[!is.na(x)])
+      data <- lapply(data, function(x) x[!myisna(x)])
     }
     if (input$sep_venn_row != "")
     {
@@ -281,7 +307,7 @@ shinyServer(function(input, output, session) {
     string <- input$comb_upset
     string <- gsub("\n", "", string)
     input_type <- input$upset_input_type
-    
+    #browser()
     if(string != ""){
       string <- as.list(unlist(strsplit(string, ",")))
       names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
@@ -292,19 +318,29 @@ shinyServer(function(input, output, session) {
     } else if(is.null(inFile) == F){
       if (input_type == 'list'){
         data <- read_delim(inFile$datapath, input$sep_upset , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_upset)
-        data <- fromList(lapply(as.list(data), function(x) x[!is.na(x)]))
         if (input$sep_row_upset != "")
         {
           data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_upset))))
         }
+        data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
       } else if (input_type == 'binary'){
         data <- read.csv(inFile$datapath, header = input$header_upset,
                          sep = input$sep_upset, quote = input$quote)
       }
-    }else if (!is.null(input$hot_upset)) {
+    } else if (!is.null(input$hot_upset)) {
       data = hot_to_r(input$hot_upset)
       names(data) <- data[1,,drop=F]
       data <- data[-1,]
+      if (input_type == 'list'){
+        if (input$sep_row_upset != "")
+        {
+          data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_upset))))
+        }
+        data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
+      } else if (input_type == 'binary'){
+        data <- lapply(data, function(x) as.character(row.names(data)[x>0]))
+        data[[1]] <- NULL
+      }
     }else{
       data<- fromExpression(c('H3K4me2&H3K4me3'=1632,'H3K4me2&H3K4me3&H3K27me3'=575,'H3K27me3'=2517,'H3K4me3&H3K27me3'=1553,'H3K4me3'=3296,'H3K4me2&H3K27me3'=1903,'H3K4me2'=6029,'H3K27ac&H3K4me2&H3K4me3&H3K27me3'=723,'H3K27ac&H3K4me2&H3K4me3'=1750,'H3K27ac&H3K4me2'=2134,'H3K27ac&H3K4me2&H3K27me3'=169,'H3K27ac&H3K4me3'=813,'H3K27ac&H3K4me3&H3K27me3'=29,'H3K27ac&H3K27me3'=760,'H3K27ac'=4216))
     }
@@ -747,8 +783,8 @@ shinyServer(function(input, output, session) {
         
       }else{
         #myMatrix <- as.matrix(pairwise_intersect(read.csv(inFile$datapath, header = input$header_p, sep=input$sep_p)))
-        myMatrix <- as.matrix(pairwise_intersect(lapply(as.list(read_delim(inFile$datapath, input$sep_p , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_p)), function(x) x[!is.na(x)])))
-        #myMatrix <- as.matrix(pairwise_intersect(lapply(as.list(read.csv(inFile$datapath, header = input$header_p, sep=input$sep_p)), function(x) x[!is.na(x)])))
+        myMatrix <- as.matrix(pairwise_intersect(lapply(as.list(read_delim(inFile$datapath, input$sep_p , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_p)), function(x) x[!myisna(x)])))
+        #myMatrix <- as.matrix(pairwise_intersect(lapply(as.list(read.csv(inFile$datapath, header = input$header_p, sep=input$sep_p)), function(x) x[!myisna(x)])))
       }
       
       if(isCor != 'non'){

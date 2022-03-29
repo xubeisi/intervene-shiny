@@ -10,7 +10,7 @@ library(dendextend)
 library(excelR)
 
 myisna <- function(x){
-  is.na(x) | x == '.'
+  is.na(x) | x == '.' | x == ''
 }
 
 #' List of named vectors to UpSetR converter
@@ -87,30 +87,25 @@ shinyServer(function(input, output, session) {
     test <- venn_data()
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
-    test <- rbind(names(test),test)
-    names(test) <- paste("V",1:ncol,sep="")
-    excelTable(data = test)
+    #old_able_rename test <- rbind(names(test),test)
+    #old_able_rename names(test) <- paste("V",1:ncol,sep="")
+    excelTable(data = test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10)
   })
-  
-  # output$hot_venn = renderRHandsontable({
-  #   test <- isolate(venn_data())
-  #   browser()
-  #   ncol <- length(test)
-  #   test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
-  #   test <- rbind(names(test),test)
-  #   names(test) <- paste("V",1:ncol,sep="")
-  #   rhandsontable(test)
-  # })
-  
+
   output$hot_upset = renderExcel({
     test <- upset_data()
     test <- lapply(test, function(x) as.character(row.names(test)[x>0])) 
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
-    test <- rbind(names(test),test)
-    names(test) <- paste("V",1:ncol,sep="")
-    excelTable(data=test)
+    #old_able_rename test <- rbind(names(test),test)
+    #old_able_rename names(test) <- paste("V",1:ncol,sep="")
+    excelTable(data=test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10)
   })
+  
+  # output$hot_venn = renderRHandsontable({
+  #   rhandsontable(test)
+  # })  
+  
   #====================================================#
   ## Venn module ####
   #====================================================#
@@ -176,8 +171,8 @@ shinyServer(function(input, output, session) {
     if (!is.null(input$hot_venn)) {
       #oldbeisi data = hot_to_r(input$hot_venn)
       data = excel_to_R(input$hot_venn)
-      names(data) <- data[1,,drop=F]
-      data <- data[-1,]
+      #old_able_rename names(data) <- data[1,,drop=F]
+      #old_able_rename data <- data[-1,]
       if (input_type == 'list'){
         data <- lapply(data, function(x) x[!myisna(x)])
       } else if (input_type == 'binary'){
@@ -214,7 +209,7 @@ shinyServer(function(input, output, session) {
         data <- lapply(data, function(x) as.character(data[,1][x>0]))
         data[[1]] <- NULL
       }
-    } else if (length(venn_data_excel())){ #!is.null(input$hot_venn) && 
+    } else if (length(venn_data_excel())){
       data <- venn_data_excel()
     }else{
       data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
@@ -391,8 +386,8 @@ shinyServer(function(input, output, session) {
     if (!is.null(input$hot_upset)) {
       #oldbeisi data = hot_to_r(input$hot_upset)
       data = excel_to_R(input$hot_upset)
-      names(data) <- data[1,,drop=F]
-      data <- data[-1,]
+      #old_able_rename names(data) <- data[1,,drop=F]
+      #old_able_rename data <- data[-1,]
       if (input_type == 'list'){
         data <- lapply(data, function(x) x[!myisna(x)])
       } else if (input_type == 'binary'){
@@ -704,7 +699,7 @@ shinyServer(function(input, output, session) {
     }, 
     content = function(file){
       data <- upset_data()
-      browser()
+      #browser()
       if(input$filetype_upset_excel == "Freq"){
         data <- Counter(data)
       } else if(input$filetype_upset_excel == "Combinations"){

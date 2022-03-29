@@ -7,7 +7,7 @@ library(RColorBrewer)
 library(htmlwidgets)
 library(gplots)
 library(dendextend)
-library(rhandsontable)
+library(excelR)
 
 myisna <- function(x){
   is.na(x) | x == '.'
@@ -30,28 +30,86 @@ fromList <- function(input){
   return(data)
 }
 
+Upset_comb <- function(data){
+  zz <- data.frame(group=apply(data==1,1,function(a) paste0(colnames(data)[a], collapse = "&")))
+  zz$gene <- row.names(zz)
+  zz <- dcast(zz, gene~group)
+  zz <- lapply(zz,function(x) zz[!is.na(x),1])
+  zz <- data.frame(sapply(zz, "length<-", max(lengths(zz))),stringsAsFactors = FALSE, check.names = FALSE)
+  row.names(zz) <- zz$gene
+  zz$gene <- NULL
+  zz
+}
+
+Counter <- function(data, empty_intersects = FALSE){
+  temp_data <- list()
+  Freqs <- data.frame()
+  num_sets <- ncol(data)
+  end_col <- as.numeric(num_sets)
+  name_of_sets <- names(data)
+  #gets indices of columns containing sets used
+  for( i in 1:num_sets){
+    temp_data[i] <- match(name_of_sets[i], colnames(data))
+  }
+  Freqs <- data.frame(count(data[ ,as.integer(temp_data)]))
+  colnames(Freqs)[1:num_sets] <- name_of_sets
+  #Adds on empty intersections if option is selected
+  if(is.null(empty_intersects) == F){
+    empty <- rep(list(c(0,1)), times = num_sets)
+    empty <- data.frame(expand.grid(empty))
+    colnames(empty) <- name_of_sets
+    empty$freq <- 0
+    all <- rbind(Freqs, empty)
+    Freqs <- data.frame(all[!duplicated(all[1:num_sets]), ], check.names = F)
+  }
+  #Remove universal empty set
+  Freqs <- Freqs[!(rowSums(Freqs[ ,1:num_sets]) == 0), ]
+  #Aggregation by degree
+  for(i in 1:nrow(Freqs)){
+    Freqs$degree[i] <- rowSums(Freqs[ i ,1:num_sets])
+  }
+  Freqs <- Freqs[order(Freqs$freq,decreasing = TRUE),]
+  for( i in 1:nrow(Freqs)){
+    Freqs$x[i] <- i
+  }
+
+  nintersections = min(1000,nrow(Freqs))
+
+  Freqs <- Freqs[1:nintersections, ]
+  Freqs <- na.omit(Freqs)
+  return(Freqs)
+}
+
 #sever code
 shinyServer(function(input, output, session) {
   
-  
-  
-  output$hot_venn = renderRHandsontable({
+  output$hot_venn = renderExcel({
     test <- venn_data()
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
     test <- rbind(names(test),test)
     names(test) <- paste("V",1:ncol,sep="")
-    rhandsontable(test)
+    excelTable(data = test)
   })
   
-  output$hot_upset = renderRHandsontable({
+  # output$hot_venn = renderRHandsontable({
+  #   test <- isolate(venn_data())
+  #   browser()
+  #   ncol <- length(test)
+  #   test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
+  #   test <- rbind(names(test),test)
+  #   names(test) <- paste("V",1:ncol,sep="")
+  #   rhandsontable(test)
+  # })
+  
+  output$hot_upset = renderExcel({
     test <- upset_data()
     test <- lapply(test, function(x) as.character(row.names(test)[x>0])) 
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
     test <- rbind(names(test),test)
     names(test) <- paste("V",1:ncol,sep="")
-    rhandsontable(test)
+    excelTable(data=test)
   })
   #====================================================#
   ## Venn module ####
@@ -112,14 +170,32 @@ shinyServer(function(input, output, session) {
     return(input$set6_color)
   })
   
-  
+  venn_data_excel <- eventReactive(input$update_tbl_venn,{
+    input_type <- input$venn_input_type
+
+    if (!is.null(input$hot_venn)) {
+      #oldbeisi data = hot_to_r(input$hot_venn)
+      data = excel_to_R(input$hot_venn)
+      names(data) <- data[1,,drop=F]
+      data <- data[-1,]
+      if (input_type == 'list'){
+        data <- lapply(data, function(x) x[!myisna(x)])
+      } else if (input_type == 'binary'){
+        data <- lapply(data, function(x) as.character(data[,1][x>0]))
+        data[[1]] <- NULL
+      }
+      data
+    } else {
+      list()
+    }
+  },ignoreNULL = FALSE
+  )
   
   venn_data <- reactive({
     inFile <- input$file_venn
     string <- input$venn_comb
     string <- gsub("\n", "", string)
     input_type <- input$venn_input_type
-    
     if(string != ""){
       string <- as.list(unlist(strsplit(string, ",")))
       names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
@@ -138,16 +214,8 @@ shinyServer(function(input, output, session) {
         data <- lapply(data, function(x) as.character(data[,1][x>0]))
         data[[1]] <- NULL
       }
-    }else if (!is.null(input$hot_venn)) {
-      data = hot_to_r(input$hot_venn)
-      names(data) <- data[1,,drop=F]
-      data <- data[-1,]
-      if (input_type == 'list'){
-        data <- lapply(data, function(x) x[!myisna(x)])
-      } else if (input_type == 'binary'){
-        data <- lapply(data, function(x) as.character(data[,1][x>0]))
-        data[[1]] <- NULL
-      }
+    } else if (length(venn_data_excel())){ #!is.null(input$hot_venn) && 
+      data <- venn_data_excel()
     }else{
       data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
       data <- lapply(data, function(x) x[!myisna(x)])
@@ -156,6 +224,7 @@ shinyServer(function(input, output, session) {
     {
       data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_venn_row))))
     }
+    
     return(data)
   })
   
@@ -287,6 +356,21 @@ shinyServer(function(input, output, session) {
     }
   )
   
+  output$vennDownExcel <- downloadHandler(
+    filename = function(){
+      paste("Venn_diagram", tolower(input$filetype_venn_excel), "csv", sep =".")
+    }, 
+    content = function(file){
+      data <- fromList(venn_data_filtered())
+      if(input$filetype_venn_excel == "Freq"){
+        data <- Counter(data)
+      } else if(input$filetype_venn_excel == "Combinations"){
+        data <- Upset_comb(data)
+      }
+      write.table(data.frame("Row"=row.names(data),data,check.names = FALSE),file,na = "",sep=",",row.names = FALSE)
+    }
+  )
+  
   #====================================================#
   ## UpSet module ####
   #====================================================#
@@ -302,12 +386,32 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  upset_data_excel <- eventReactive(input$update_tbl_upset,{
+    input_type <- input$upset_input_type
+    if (!is.null(input$hot_upset)) {
+      #oldbeisi data = hot_to_r(input$hot_upset)
+      data = excel_to_R(input$hot_upset)
+      names(data) <- data[1,,drop=F]
+      data <- data[-1,]
+      if (input_type == 'list'){
+        data <- lapply(data, function(x) x[!myisna(x)])
+      } else if (input_type == 'binary'){
+        data <- lapply(data, function(x) as.character(data[,1][x>0]))
+        data[[1]] <- NULL
+      }
+      fromList(data)
+    } else {
+      data.frame()
+    }
+  },ignoreNULL = FALSE
+  )
+  
   upset_data <- reactive({  
     inFile <- input$file_upset
     string <- input$comb_upset
     string <- gsub("\n", "", string)
     input_type <- input$upset_input_type
-    #browser()
+
     if(string != ""){
       string <- as.list(unlist(strsplit(string, ",")))
       names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
@@ -327,20 +431,8 @@ shinyServer(function(input, output, session) {
         data <- read.csv(inFile$datapath, header = input$header_upset,
                          sep = input$sep_upset, quote = input$quote)
       }
-    } else if (!is.null(input$hot_upset)) {
-      data = hot_to_r(input$hot_upset)
-      names(data) <- data[1,,drop=F]
-      data <- data[-1,]
-      if (input_type == 'list'){
-        if (input$sep_row_upset != "")
-        {
-          data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_upset))))
-        }
-        data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
-      } else if (input_type == 'binary'){
-        data <- lapply(data, function(x) as.character(row.names(data)[x>0]))
-        data[[1]] <- NULL
-      }
+    } else if (nrow(upset_data_excel())) {
+      data <- upset_data_excel()
     }else{
       data<- fromExpression(c('H3K4me2&H3K4me3'=1632,'H3K4me2&H3K4me3&H3K27me3'=575,'H3K27me3'=2517,'H3K4me3&H3K27me3'=1553,'H3K4me3'=3296,'H3K4me2&H3K27me3'=1903,'H3K4me2'=6029,'H3K27ac&H3K4me2&H3K4me3&H3K27me3'=723,'H3K27ac&H3K4me2&H3K4me3'=1750,'H3K27ac&H3K4me2'=2134,'H3K27ac&H3K4me2&H3K27me3'=169,'H3K27ac&H3K4me3'=813,'H3K27ac&H3K4me3&H3K27me3'=29,'H3K27ac&H3K27me3'=760,'H3K27ac'=4216))
     }
@@ -382,7 +474,6 @@ shinyServer(function(input, output, session) {
     if(is.null(upset_data()) != T){
       sizes <- colSums(upset_data()[startEnd()[1]:startEnd()[2]])
       sizes <- sizes[order(sizes, decreasing = T)]
-      
       names <- names(sizes); sizes <- as.numeric(sizes);
       maxchar <- max(nchar(names))
       total <- list()
@@ -571,9 +662,6 @@ shinyServer(function(input, output, session) {
       height <- upset_height()
       pixelratio <- 2
       
-      #width  <- session$clientData$output_plot_width
-      #height <- ((session$clientData$output_plot_height)*2)
-      #pixelratio <- session$clientData$pixelratio
       if(input$filetype == "PNG")
         png(file, width=width*pixelratio, height=height*pixelratio,
             res=72*pixelratio, units = "px")
@@ -607,6 +695,22 @@ shinyServer(function(input, output, session) {
       )
       
       dev.off()
+    }
+  )
+  
+  output$upsetDownExcel <- downloadHandler(
+    filename = function(){
+      paste("UpSet", tolower(input$filetype_upset_excel), "csv", sep =".")
+    }, 
+    content = function(file){
+      data <- upset_data()
+      browser()
+      if(input$filetype_upset_excel == "Freq"){
+        data <- Counter(data)
+      } else if(input$filetype_upset_excel == "Combinations"){
+        data <- Upset_comb(data)
+      }
+      write.table(data.frame("Row"=row.names(data),data,check.names = FALSE),file,na = "",sep=",",row.names = FALSE)
     }
   )
   

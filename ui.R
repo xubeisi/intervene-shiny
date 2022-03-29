@@ -118,9 +118,11 @@ bodyVenn <- tabItem(tabName = "venn",
                               ),
                               selected = ''
                             ),
-                            br(),
-                            p("Delete and Paste below(Upload file will be shown but can't be edit here)"),
-                            rHandsontableOutput("hot_venn", height = 400),
+                            tags$b(p("Paste below(Upload file will be shown but can't be edit here)")),
+                            p("(> 500 might be slow that better use upload file)"),
+                            actionButton("update_tbl_venn","Refresh"),
+                            excelOutput("hot_venn"),
+                            #oldbeisi rHandsontableOutput("hot_venn", height = 400),
                             br(),
                             textAreaInput('venn_comb', label = "OR enter set combinations/expression", rows = 4, placeholder = "Enter combinations of sets to plot"),
                             p("For example: A=3, B=3, C=2, A&B=1, A&C=2, B&C=1 ,A&B&C=1"),
@@ -240,8 +242,13 @@ bodyVenn <- tabItem(tabName = "venn",
                              label = "Choose file type to download:",
                              inline = TRUE,
                              choices = list("PDF", "PNG","SVG","TIFF")),
-                           
-                           downloadButton(outputId = "VennDown", label = "Download Plot")
+                           downloadButton(outputId = "VennDown", label = "Download Plot"),
+                           radioButtons(
+                             inputId = "filetype_venn_excel",
+                             label = "Choose Data type to download:",
+                             inline = TRUE,
+                             choices = list("Binary","Combinations","Freq")),
+                           downloadButton(outputId = "vennDownExcel", label = "Download Table")
                          )
                 ),
                 tabPanel("Usage Instructions", 
@@ -314,9 +321,11 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                      ),
                                      selected = ''
                                    ),
-                                   br(),
-                                   p("Delete and Paste below(Upload file will be shown but can't be edit here)"),
-                                   rHandsontableOutput("hot_upset", height = 400),
+                                   tags$b(p("Paste below(Upload file will be shown but can't be edit here)")),
+                                   p("(> 500 might be slow that better use upload file)"),
+                                   actionButton("update_tbl_upset","Refresh"),
+                                   excelOutput("hot_upset"),
+                                   #oldbeisi rHandsontableOutput("hot_upset", height = 400),
                                    br(),
                                    textAreaInput('comb_upset', label = "OR enter set combinations/expression", rows = 4, placeholder = "Enter combinations of sets to plot"),
                                   p("For example: A=3, B=3, C=2, A&B=1, A&C=2, B&C=1 ,A&B&C=1"),
@@ -483,8 +492,13 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                        label = "Choose file type to download:",
                                        inline = TRUE,
                                        choices = list("PDF", "PNG","SVG","TIFF")),
-                                     
-                                     downloadButton(outputId = "UpSetDown", label = "Download Plot")
+                                     downloadButton(outputId = "UpSetDown", label = "Download Plot"),
+                                     radioButtons(
+                                       inputId = "filetype_upset_excel",
+                                       label = "Choose Data type to download:",
+                                       inline = TRUE,
+                                       choices = list("Binary","Combinations","Freq")),
+                                     downloadButton(outputId = "upsetDownExcel", label = "Download Table")
                                    )
                                    ),
                           tabPanel("Usage Instructions", 

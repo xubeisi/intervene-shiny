@@ -164,6 +164,18 @@ shinyServer(function(input, output, session) {
   set6_color <- reactive({
     return(input$set6_color)
   })
+  set7_color <- reactive({
+    return(input$set7_color)
+  })
+  set8_color <- reactive({
+    return(input$set8_color)
+  })
+  set9_color <- reactive({
+    return(input$set9_color)
+  })
+  set10_color <- reactive({
+    return(input$set10_color)
+  })
   
   venn_data_excel <- eventReactive(input$update_tbl_venn,{
     input_type <- input$venn_input_type
@@ -264,29 +276,35 @@ shinyServer(function(input, output, session) {
   })
   
   get_venn_gp <- reactive({
-    venn_gp <- VennThemes(compute.Venn(venn_combinations()))
+    if (venn_color_type() == 'custom'){
+      venn_gp <- VennThemes(compute.Venn(venn_combinations()))
+    } else {
+      venn_gp <- VennThemes(compute.Venn(venn_combinations()),colourAlgorithm=venn_color_type())
+    }
+    
     venn_gp$SetText <- lapply(venn_gp$SetText,function(x) {x$fontsize<-venn_labelsize(); return(x)})
     venn_gp$FaceText <- lapply(venn_gp$FaceText,function(x) {x$cex<-venn_cex(); return(x)})
     venn_gp$Set <- lapply(venn_gp$Set,function(x) {x$lwd<-venn_lwd(); return(x)})
     venn_gp$Set <- lapply(venn_gp$Set,function(x) {x$lty<-venn_lty(); return(x)})
     
-    if (venn_color_type () == 'custom'){
-      venn_gp$Set$Set1$col <- set1_color()
-      venn_gp$Set$Set2$col <- set2_color()
-      venn_gp$Set$Set3$col <- set3_color()
-      venn_gp$Set$Set4$col <- set4_color()
-      venn_gp$Set$Set5$col <- set5_color()
-      venn_gp$Set$Set6$col <- set6_color()
-      
-      venn_gp$SetText$Set1$col <- set1_color()
-      venn_gp$SetText$Set2$col <- set2_color()
-      venn_gp$SetText$Set3$col <- set3_color()
-      venn_gp$SetText$Set4$col <- set4_color()
-      venn_gp$SetText$Set5$col <- set5_color()
-      venn_gp$SetText$Set6$col <- set6_color()
-      
-    }
+    #browser()
     
+    if (venn_color_type() == 'custom'){
+      inputcolors <- c(set1_color(),set2_color(),set3_color(),set4_color(),set5_color(),set6_color(),set7_color(),set8_color(),set9_color(),set10_color())
+      for (i in 1:length(venn_gp$Set)){
+        thisset <- names(venn_gp$Set)[i]
+        venn_gp$Set[[thisset]]$col <- inputcolors[i]
+        venn_gp$SetText[[thisset]]$col <- inputcolors[i]
+      }
+      if(length(venn_gp$Face) < 9){
+        for (i in 2:length(venn_gp$Face)){
+          thisset <- names(venn_gp$Face)[i]
+          venn_gp$Face[[thisset]]$col <- inputcolors[i+2]
+          venn_gp$Face[[thisset]]$fill <- inputcolors[i+2]
+        }
+      }
+    }
+
     return(venn_gp)
   })
   

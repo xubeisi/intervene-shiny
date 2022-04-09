@@ -190,20 +190,28 @@ bodyVenn <- tabItem(tabName = "venn",
                   tabPanel("Font & Color",
                            selectInput('venn_color_type', label="Select color theme",
                                        choices = list(
-                                         Set1 = "Set1",
-                                         #YlOrRd = "YlOrRd",
+                                         binary = "binary",
+                                         sequential = "sequential",
+                                         signature = "signature",
                                          Custom = "custom"
                                        ),
-                                       selected = "Set1"
+                                       selected = "signature"
                            ),
                            conditionalPanel(condition = "input.venn_color_type=='custom'",
                                             fluidRow(
-                                              column(2,colourInput("set1_color", label = "Set1", value = "#E41A1C")), 
-                                              column(2, colourInput("set2_color", label = "Set2", value = "#377EB8")),
-                                              column(2,colourInput("set3_color", label = "Set3", value = "#4DAF4A")), 
-                                              column(2, colourInput("set4_color", label = "Set4", value = "#984EA3")),
-                                              column(2,colourInput("set5_color", label = "Set5", value = "#FF7F00")), 
-                                              column(2, colourInput("set6_color", label = "Set6", value = "#FFFF33")))
+                                              column(3,colourInput("set1_color", label = "Color1", value = "#E41A1C")), 
+                                              column(3,colourInput("set2_color", label = "2", value = "#377EB8")),
+                                              column(3,colourInput("set3_color", label = "3", value = "#4DAF4A")), 
+                                              column(3,colourInput("set4_color", label = "4", value = "#8DD3C7"))),
+                                            fluidRow(
+                                              column(3,colourInput("set5_color", label = "5", value = "#FB8072")), 
+                                              column(3,colourInput("set6_color", label = "6", value = "#FFFFB3")),
+                                              column(3,colourInput("set7_color", label = "7", value = "#B3DE69")),
+                                              column(3,colourInput("set8_color", label = "8", value = "#80B1D3"))),
+                                            fluidRow(
+                                              column(3,colourInput("set9_color", label = "9", value = "#FDB462")), 
+                                              column(3,colourInput("set10_color", label = "10", value = "#BEBADA")))
+                                            
                            ),
                            numericInput(
                              "venn_labelsize",

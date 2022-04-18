@@ -1,13 +1,20 @@
 options(shiny.maxRequestSize=1000*1024^2)
 
+libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,d3heatmap,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr"
+libs <- unlist(strsplit(libs,","))
+req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
+need<-libs[req==FALSE]
+if(length(need)>0){ 
+  install.packages(need)
+  lapply(need,require,character.only=TRUE)
+}
+#BiocManager::install(c("RBGL","caTools"))
+#devtools::install_github("js229/Vennerable")
+#devtools::install_github("talgalili/d3heatmap")
+
 #devtools::install_github("jrowen/rhandsontable")
 
 source("pairwise_intersect.R")
-library(RColorBrewer)
-library(htmlwidgets)
-library(gplots)
-library(dendextend)
-library(excelR)
 
 myisna <- function(x){
   is.na(x) | x == '.' | x == ''
@@ -218,8 +225,10 @@ shinyServer(function(input, output, session) {
       } else if (input_type == 'binary'){
         data <- read.csv(input$file_venn$datapath, header = input$header_venn,
                          sep = input$sep_venn, quote = input$quote)
+        
         data <- lapply(data, function(x) as.character(data[,1][x>0]))
         data[[1]] <- NULL
+        data <- data[as.vector(unlist(lapply(data,function(x)any(!is.na(x)))))]
       }
     } else if (length(venn_data_excel())){
       data <- venn_data_excel()
@@ -338,9 +347,9 @@ shinyServer(function(input, output, session) {
   )
   
   output$VennDown <- downloadHandler(
-    filename = function(){
-      paste("Venn_diagram", tolower(input$filetype_venn), sep =".")
-    }, 
+    filename <- function() {
+      paste("Figure_SJCAB_Venn", sub(" ","-",Sys.time()), tolower(input$filetype_venn), sep = ".")
+    },
     content = function(file){
       width  <- venn_size()
       height <- venn_size()
@@ -370,9 +379,9 @@ shinyServer(function(input, output, session) {
   )
   
   output$vennDownExcel <- downloadHandler(
-    filename = function(){
-      paste("Venn_diagram", tolower(input$filetype_venn_excel), "csv", sep =".")
-    }, 
+    filename <- function() {
+      paste("Figure_SJCAB_Venn", tolower(input$filetype_venn_excel), sub(" ","-",Sys.time()), "csv", sep = ".")
+    },
     content = function(file){
       data <- fromList(venn_data_filtered())
       if(input$filetype_venn_excel == "Freq"){
@@ -666,10 +675,9 @@ shinyServer(function(input, output, session) {
   # })
   
   output$UpSetDown <- downloadHandler(
-    
-    filename = function(){
-      paste("UpSet_plot", tolower(input$filetype), sep =".")
-    }, 
+    filename <- function() {
+      paste("Figure_SJCAB_UpSet", sub(" ","-",Sys.time()), tolower(input$filetype), sep = ".")
+    },
     content = function(file){
       width <- upset_width()
       height <- upset_height()
@@ -712,9 +720,9 @@ shinyServer(function(input, output, session) {
   )
   
   output$upsetDownExcel <- downloadHandler(
-    filename = function(){
-      paste("UpSet", tolower(input$filetype_upset_excel), "csv", sep =".")
-    }, 
+    filename <- function() {
+      paste("Figure_SJCAB_UpSet", tolower(input$filetype_upset_excel), sub(" ","-",Sys.time()), "csv", sep = ".")
+    },
     content = function(file){
       data <- upset_data()
       #browser()

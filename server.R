@@ -1,6 +1,6 @@
 options(shiny.maxRequestSize=1000*1024^2)
 
-libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,d3heatmap,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr"
+libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,d3heatmap,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr,excelR,reshape2"
 libs <- unlist(strsplit(libs,","))
 req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
 need<-libs[req==FALSE]
@@ -91,27 +91,19 @@ Counter <- function(data, empty_intersects = FALSE){
 shinyServer(function(input, output, session) {
   
   output$hot_venn = renderExcel({
-    test <- venn_data()
+    test <- venn_data() #list
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
-    #old_able_rename test <- rbind(names(test),test)
-    #old_able_rename names(test) <- paste("V",1:ncol,sep="")
-    excelTable(data = test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10)
+    excelTable(data = test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10,pagination=500)
   })
 
   output$hot_upset = renderExcel({
-    test <- upset_data()
+    test <- upset_data() # bin
     test <- lapply(test, function(x) as.character(row.names(test)[x>0])) 
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
-    #old_able_rename test <- rbind(names(test),test)
-    #old_able_rename names(test) <- paste("V",1:ncol,sep="")
-    excelTable(data=test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10)
+    excelTable(data=test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10,pagination=500)
   })
-  
-  # output$hot_venn = renderRHandsontable({
-  #   rhandsontable(test)
-  # })  
   
   #====================================================#
   ## Venn module ####
@@ -188,15 +180,12 @@ shinyServer(function(input, output, session) {
     input_type <- input$venn_input_type
 
     if (!is.null(input$hot_venn)) {
-      #oldbeisi data = hot_to_r(input$hot_venn)
       data = excel_to_R(input$hot_venn)
-      #old_able_rename names(data) <- data[1,,drop=F]
-      #old_able_rename data <- data[-1,]
       if (input_type == 'list'){
         data <- lapply(data, function(x) x[!myisna(x)])
       } else if (input_type == 'binary'){
-        data <- lapply(data, function(x) as.character(data[,1][x>0]))
-        data[[1]] <- NULL
+        data <- data[!myisna(data[,1]),]
+        data <- lapply(data[,-1,drop=F], function(x) as.character(data[,1][x>0]))
       }
       data
     } else {
@@ -223,12 +212,15 @@ shinyServer(function(input, output, session) {
         data <- read_delim(input$file_venn$datapath, input$sep_venn , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_venn)
         data <- lapply(data, function(x) x[!myisna(x)])
       } else if (input_type == 'binary'){
+        thequote <- input$quote
+        if(thequote == "No")
+        {
+          thequote <- ""
+        }
         data <- read.csv(input$file_venn$datapath, header = input$header_venn,
-                         sep = input$sep_venn, quote = input$quote)
-        
-        data <- lapply(data, function(x) as.character(data[,1][x>0]))
-        data[[1]] <- NULL
-        data <- data[as.vector(unlist(lapply(data,function(x)any(!is.na(x)))))]
+                         sep = input$sep_venn, quote = thequote, row.names=NULL)
+        data <- data[!myisna(data[,1]),]
+        data <- lapply(data[,-1,drop=F], function(x) as.character(data[,1][x>0]))
       }
     } else if (length(venn_data_excel())){
       data <- venn_data_excel()
@@ -236,9 +228,9 @@ shinyServer(function(input, output, session) {
       data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
       data <- lapply(data, function(x) x[!myisna(x)])
     }
-    if (input$sep_venn_row != "")
+    if (input$sep_row_venn != "No")
     {
-      data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_venn_row))))
+      data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_venn))))
     }
     
     return(data)
@@ -347,9 +339,9 @@ shinyServer(function(input, output, session) {
   )
   
   output$VennDown <- downloadHandler(
-    filename <- function() {
-      paste("Figure_SJCAB_Venn", sub(" ","-",Sys.time()), tolower(input$filetype_venn), sep = ".")
-    },
+    filename = function(){
+      paste("Venn_diagram", tolower(input$filetype_venn), sep =".")
+    }, 
     content = function(file){
       width  <- venn_size()
       height <- venn_size()
@@ -379,9 +371,9 @@ shinyServer(function(input, output, session) {
   )
   
   output$vennDownExcel <- downloadHandler(
-    filename <- function() {
-      paste("Figure_SJCAB_Venn", tolower(input$filetype_venn_excel), sub(" ","-",Sys.time()), "csv", sep = ".")
-    },
+    filename = function(){
+      paste("Venn_diagram", tolower(input$filetype_venn_excel), "csv", sep =".")
+    }, 
     content = function(file){
       data <- fromList(venn_data_filtered())
       if(input$filetype_venn_excel == "Freq"){
@@ -411,15 +403,12 @@ shinyServer(function(input, output, session) {
   upset_data_excel <- eventReactive(input$update_tbl_upset,{
     input_type <- input$upset_input_type
     if (!is.null(input$hot_upset)) {
-      #oldbeisi data = hot_to_r(input$hot_upset)
       data = excel_to_R(input$hot_upset)
-      #old_able_rename names(data) <- data[1,,drop=F]
-      #old_able_rename data <- data[-1,]
       if (input_type == 'list'){
         data <- lapply(data, function(x) x[!myisna(x)])
       } else if (input_type == 'binary'){
-        data <- lapply(data, function(x) as.character(data[,1][x>0]))
-        data[[1]] <- NULL
+        data <- data[!myisna(data[,1]),]
+        data <- lapply(data[,-1,drop=F], function(x) as.character(data[,1][x>0]))
       }
       fromList(data)
     } else {
@@ -444,14 +433,20 @@ shinyServer(function(input, output, session) {
     } else if(is.null(inFile) == F){
       if (input_type == 'list'){
         data <- read_delim(inFile$datapath, input$sep_upset , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_upset)
-        if (input$sep_row_upset != "")
+        if (input$sep_row_upset != "No")
         {
           data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_upset))))
         }
         data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
       } else if (input_type == 'binary'){
+        thequote <- input$quote
+        if(thequote == "No")
+        {
+          thequote <- ""
+        }
         data <- read.csv(inFile$datapath, header = input$header_upset,
-                         sep = input$sep_upset, quote = input$quote)
+                         sep = input$sep_upset, quote = thequote, row.names = NULL)
+        data <- data[!myisna(data[,1]),]
       }
     } else if (nrow(upset_data_excel())) {
       data <- upset_data_excel()
@@ -660,24 +655,15 @@ shinyServer(function(input, output, session) {
           text.scale = c(input$intersection_title_scale, input$intersection_ticks_scale,
                          input$set_title_scale, input$set_ticks_scale, input$names_scale,
                          input$intersection_size_numbers_scale))},
-    #width  <- session$clientData$output_plot_width
-    #height <- ((session$clientData$output_plot_height)*1.7)
     width = upset_width,
     height = upset_height
   )
   
-  #outputOptions(output, "plot", suspendWhenHidden = FALSE)
-  
-  # observe({
-  #   if(pushed$B != 0 && length(pushed$B) == 1){
-  #     updateTabsetPanel(session, "main_panel", "upset_plot")
-  #   }
-  # })
-  
   output$UpSetDown <- downloadHandler(
-    filename <- function() {
-      paste("Figure_SJCAB_UpSet", sub(" ","-",Sys.time()), tolower(input$filetype), sep = ".")
-    },
+    
+    filename = function(){
+      paste("UpSet_plot", tolower(input$filetype), sep =".")
+    }, 
     content = function(file){
       width <- upset_width()
       height <- upset_height()
@@ -720,9 +706,9 @@ shinyServer(function(input, output, session) {
   )
   
   output$upsetDownExcel <- downloadHandler(
-    filename <- function() {
-      paste("Figure_SJCAB_UpSet", tolower(input$filetype_upset_excel), sub(" ","-",Sys.time()), "csv", sep = ".")
-    },
+    filename = function(){
+      paste("UpSet", tolower(input$filetype_upset_excel), "csv", sep =".")
+    }, 
     content = function(file){
       data <- upset_data()
       #browser()

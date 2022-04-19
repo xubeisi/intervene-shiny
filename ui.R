@@ -137,7 +137,8 @@ bodyVenn <- tabItem(tabName = "venn",
                              ),
                              tabPanel("Settings",
                                       #add content
-                                      htmlOutput("venn_sets"),
+                                      htmlOutput("rowname_venn"),
+                                      htmlOutput("sets_venn"),
                                       selectInput(
                                         "venn_type",
                                         label = "Venn type",
@@ -351,7 +352,7 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                            tabPanel("Settings",
                                     #add content
                                     htmlOutput("rowname_upset"),
-                                    htmlOutput("sets"),
+                                    htmlOutput("sets_upset"),
                                     numericInput(
                                       "nintersections",
                                       label = "Number of intersections to show",

@@ -236,30 +236,30 @@ shinyServer(function(input, output, session) {
     return(data)
   })
   
-  set_names <- reactive({
+  set_names_venn <- reactive({
     names <- names(venn_data())
     return(names)
   })
   
-  output$venn_sets <- renderUI({
-    venn_sets <- selectInput('venn_sets', label = "Select sets",
-                             choices = as.character(set_names()),
-                             multiple = T, selectize = T, selected = as.character(set_names()[1:3]))
-    return(venn_sets)
+  output$sets_venn <- renderUI({
+    sets_venn <- selectInput('sets_venn', label = "Select sets",
+                             choices = as.character(set_names_venn()),
+                             multiple = T, selectize = T, selected = as.character(set_names_venn()[1:3]))
+    return(sets_venn)
   })
   
-  venn_selected_names <- reactive({
-    venn_selected_names <- as.character(c(input$venn_sets))
+  selected_names_venn <- reactive({
+    selected_names_venn <- as.character(c(input$sets_venn))
   })
   
   venn_data_filtered <- reactive({
     
     data <- venn_data()
-    if(is.null(input$venn_sets)){
+    if(is.null(input$sets_venn)){
       data <- data[names(data)[1:3]]
       return(data)
     }else{
-      data <- data[c(venn_selected_names())]
+      data <- data[c(selected_names_venn())]
       return(data)
     }
     return(data)
@@ -521,7 +521,7 @@ shinyServer(function(input, output, session) {
     Specific_sets <- as.character(c(input$upset_sets))
   })
   
-  output$sets <- renderUI({
+  output$sets_upset <- renderUI({
     if(is.null(upset_data()) == T){
       sets <-  selectInput('upset_sets', label="Select at least two sets ",
                            choices = NULL,

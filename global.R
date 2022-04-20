@@ -1,3 +1,6 @@
+options(bedtools.path = "/home/bxu2/ShinyApps/tool_intervene/bin")
+library(bedtoolsr)
+
 library(shiny)
 library(shinydashboard)
 library(DT)

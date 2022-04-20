@@ -33,22 +33,21 @@ fromList <- function(input){
   data <- data.frame(matrix(data, ncol = length(input), byrow = F))
   data <- data[which(rowSums(data) !=0), ]
   names(data) <- names(input)
-  row.names(data) <- elements
+  data <- data.frame(Rowname=elements,data)
   return(data)
 }
 
 Upset_comb <- function(data){
-  zz <- data.frame(group=apply(data==1,1,function(a) paste0(colnames(data)[a], collapse = "&")))
-  zz$gene <- row.names(zz)
-  zz <- dcast(zz, gene~group)
-  zz <- lapply(zz,function(x) zz[!is.na(x),1])
+  zz <- data.frame(Rowname=data[,1],group=apply(data[,-1]==1,1,function(a) paste0(colnames(data[,-1])[a], collapse = "&")))
+  zz <- dcast(zz, Rowname~group, value.var="Rowname", fun.aggregate=length)
+  if ("Var.2" %in% names(zz)) zz[['Var.2']] <- NULL
+  zz <- lapply(zz,function(x) unique(zz[x>0,1]))
   zz <- data.frame(sapply(zz, "length<-", max(lengths(zz))),stringsAsFactors = FALSE, check.names = FALSE)
-  row.names(zz) <- zz$gene
-  zz$gene <- NULL
   zz
 }
 
 Counter <- function(data, empty_intersects = FALSE){
+  data <- data[,-1]
   temp_data <- list()
   Freqs <- data.frame()
   num_sets <- ncol(data)
@@ -79,30 +78,78 @@ Counter <- function(data, empty_intersects = FALSE){
   for( i in 1:nrow(Freqs)){
     Freqs$x[i] <- i
   }
-
+  
   nintersections = min(1000,nrow(Freqs))
-
+  
   Freqs <- Freqs[1:nintersections, ]
   Freqs <- na.omit(Freqs)
   return(Freqs)
+}
+
+Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,dataread,dedup=TRUE,example="exp"){
+  if(string != ""){
+    string <- as.list(unlist(strsplit(string, ",")))
+    names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
+    names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
+    values <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
+    names(values) <- names
+    data <- fromExpression(values)
+    if(!"Rowname" %in% names(data)){
+      data <- data.frame(Rowname=row.names(data),data)      
+    }
+  } else if(is.null(inFile) == F){
+    if (input_type == 'list'){
+      data <- read_delim(inFile$datapath, sep_ , escape_double = FALSE, trim_ws = TRUE, col_names = header_)
+      if (sep_row_ != "No")
+      {
+        data <- lapply(data, function(x) unique(unlist(strsplit(x,sep_row_))))
+      }
+      data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
+    } else if (input_type == 'binary'){
+      if(thequote == "No")
+      {
+        thequote <- ""
+      }
+      data <- read.csv(inFile$datapath, header = header_,
+                       sep = sep_, quote = thequote, row.names = NULL)
+    }
+  } else if (nrow(dataread)) {
+    browser()
+    data <- dataread
+  }else{
+    if(example == "exp"){
+      data<- fromExpression(c('H3K4me2&H3K4me3'=1632,'H3K4me2&H3K4me3&H3K27me3'=575,'H3K27me3'=2517,'H3K4me3&H3K27me3'=1553,'H3K4me3'=3296,'H3K4me2&H3K27me3'=1903,'H3K4me2'=6029,'H3K27ac&H3K4me2&H3K4me3&H3K27me3'=723,'H3K27ac&H3K4me2&H3K4me3'=1750,'H3K27ac&H3K4me2'=2134,'H3K27ac&H3K4me2&H3K27me3'=169,'H3K27ac&H3K4me3'=813,'H3K27ac&H3K4me3&H3K27me3'=29,'H3K27ac&H3K27me3'=760,'H3K27ac'=4216))
+      if(!"Rowname" %in% names(data)){
+        data <- data.frame(Rowname=row.names(data),data)      
+      }
+    } else {
+      data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
+      if (sep_row_ != "No")
+      {
+        data <- lapply(data, function(x) unique(unlist(strsplit(x,sep_row_))))
+      }
+      data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
+    }
+  }
+  return(data)
 }
 
 #sever code
 shinyServer(function(input, output, session) {
   
   output$hot_venn = renderExcel({
-    test <- venn_data() #list
+    test <- venn_data_filtered() #list
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
-    excelTable(data = test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10,pagination=500)
+    excelTable(data=test,colHeaders=names(test),wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10,pagination=500)
   })
-
+  
   output$hot_upset = renderExcel({
-    test <- upset_data() # bin
-    test <- lapply(test, function(x) as.character(row.names(test)[x>0])) 
+    test <- upset_data_filtered() # bin
+    test <- lapply(test[,-1], function(x) as.character(test[,1][x>0])) 
     ncol <- length(test)
     test <- data.frame(sapply(test, "length<-", max(lengths(test))),stringsAsFactors = FALSE)
-    excelTable(data=test,wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10,pagination=500)
+    excelTable(data=test,colHeaders=names(test),wordWrap=TRUE,search=TRUE,loadingSpin=TRUE,showToolbar=TRUE,autoWidth=TRUE,defaultColWidth=10,pagination=500)
   })
   
   #====================================================#
@@ -177,19 +224,12 @@ shinyServer(function(input, output, session) {
   })
   
   venn_data_excel <- eventReactive(input$update_tbl_venn,{
-    input_type <- input$venn_input_type
-
     if (!is.null(input$hot_venn)) {
       data = excel_to_R(input$hot_venn)
-      if (input_type == 'list'){
-        data <- lapply(data, function(x) x[!myisna(x)])
-      } else if (input_type == 'binary'){
-        data <- data[!myisna(data[,1]),]
-        data <- lapply(data[,-1,drop=F], function(x) as.character(data[,1][x>0]))
-      }
-      data
+      data <- lapply(data, function(x) x[!myisna(x)])
+      fromList(data)
     } else {
-      list()
+      data.frame()
     }
   },ignoreNULL = FALSE
   )
@@ -199,52 +239,42 @@ shinyServer(function(input, output, session) {
     string <- input$venn_comb
     string <- gsub("\n", "", string)
     input_type <- input$venn_input_type
-    if(string != ""){
-      string <- as.list(unlist(strsplit(string, ",")))
-      names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
-      names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
-      values <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
-      names(values) <- names
-      venneuler <- fromExpression(values)
-      data <- lapply(venneuler, function(x) as.character(row.names(venneuler)[x>0])) # df to list
-    } else if(is.null(inFile) == F){
-      if (input_type == 'list'){
-        data <- read_delim(input$file_venn$datapath, input$sep_venn , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_venn)
-        data <- lapply(data, function(x) x[!myisna(x)])
-      } else if (input_type == 'binary'){
-        thequote <- input$quote
-        if(thequote == "No")
-        {
-          thequote <- ""
-        }
-        data <- read.csv(input$file_venn$datapath, header = input$header_venn,
-                         sep = input$sep_venn, quote = thequote, row.names=NULL)
-        data <- data[!myisna(data[,1]),]
-        data <- lapply(data[,-1,drop=F], function(x) as.character(data[,1][x>0]))
-      }
-    } else if (length(venn_data_excel())){
-      data <- venn_data_excel()
-    }else{
-      data <- read_delim('data/Whyte_et_al_2013_SEs_genes.csv', ",", escape_double = FALSE, trim_ws = TRUE, col_names = TRUE)
-      data <- lapply(data, function(x) x[!myisna(x)])
-    }
-    if (input$sep_row_venn != "No")
-    {
-      data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_venn))))
-    }
     
+    data <- Univ_reader(input_type,inFile,string,input$sep_venn,input$header_venn,input$sep_row_venn,input$quote_venn,venn_data_excel(),example="gene")
     return(data)
   })
   
   set_names_venn <- reactive({
-    names <- names(venn_data())
-    return(names)
+    data <- venn_data()
+    names0 <- as.character(names(data))
+    if (input$venn_input_type == 'binary') {
+      notbin <- apply(data,2,function(x)any(!x %in% c(0,1)))
+      nameother <- names0[notbin]
+      names0 <- names0[!notbin]
+    } else {
+      names0 <- names0[names0 != "Rowname"]
+      nameother <- c("Rowname")
+    }
+    return(list(names0,nameother))
+  })
+  
+  output$rowname_venn <- renderUI({
+    if (input$venn_input_type == 'binary') {
+      sets_venn <- selectInput('rowname_venn', label = "Rowname for binary data",
+                               choices = set_names_venn()[[2]],
+                               multiple = F, selected = set_names_venn()[[2]][1])
+    } else {
+      sets_venn <- NULL
+    }
+    return(sets_venn)
   })
   
   output$sets_venn <- renderUI({
+    goodname <- set_names_venn()[[1]]
+    goodnamesel <- goodname[1:3]
     sets_venn <- selectInput('sets_venn', label = "Select sets",
-                             choices = as.character(set_names_venn()),
-                             multiple = T, selectize = T, selected = as.character(set_names_venn()[1:3]))
+                             choices = goodname,
+                             multiple = T, selectize = T, selected = goodnamesel)
     return(sets_venn)
   })
   
@@ -253,15 +283,52 @@ shinyServer(function(input, output, session) {
   })
   
   venn_data_filtered <- reactive({
+    sep_row_ <- input$sep_row_venn
+    dedup <- input$dedup_venn
+    data <- venn_data() # bin w/ rowname
     
-    data <- venn_data()
-    if(is.null(input$sets_venn)){
-      data <- data[names(data)[1:3]]
-      return(data)
-    }else{
-      data <- data[c(selected_names_venn())]
-      return(data)
+    i_rowname_venn <- 1
+    if (input$venn_input_type == 'binary' && is.data.frame(data)) {
+      if(!is.null(input$rowname_venn)){
+        i_rowname_venn <- which(names(data) == input$rowname_venn)
+      }
+      data <- data[!myisna(data[,i_rowname_venn]),]
     }
+    
+    if(is.null(input$sets_venn)){
+      thenames <- set_names_venn()[[1]][1:3]
+    }else{
+      thenames <- c(selected_names_venn())
+    }
+    data <- data.frame(Rowname=data[,i_rowname_venn],data[,names(data) %in% thenames])
+    
+    if (sep_row_ != "No")
+    {
+      aa <- data.frame(
+        do.call(rbind,
+                apply(data, 1, function(x) {
+                  do.call(expand.grid, list(strsplit(x, sep_row_),stringsAsFactors = FALSE))
+                })
+        ))
+      data <- as.data.frame(mapply(FUN = as,aa,sapply(data,class),SIMPLIFY = FALSE))
+    }
+    
+    if (dedup)
+    {
+      touse4mean <- data[,-1]
+      itouse4mean <- apply(touse4mean,2,is.numeric)
+      themean <- apply(touse4mean[,itouse4mean],1,sum)
+      genes <- data[,1]
+      theorder <- order(themean,decreasing=T)
+      genes <- genes[theorder]
+      data <- data[theorder,]
+      data <- data[ave(as.character(genes),as.character(genes),FUN=seq_along) == 1,]
+    }  
+    
+    i_rowname_venn <- 1
+    data <- lapply(data[,-i_rowname_venn,drop=F], function(x) as.character(data[,i_rowname_venn][x>0]))
+    data <- lapply(data, function(x) x[!myisna(x)])
+    
     return(data)
   })
   
@@ -305,7 +372,7 @@ shinyServer(function(input, output, session) {
         }
       }
     }
-
+    
     return(venn_gp)
   })
   
@@ -392,7 +459,7 @@ shinyServer(function(input, output, session) {
   #https://github.com/hms-dbmi/UpSetR-shiny
   
   output$plot_text <- renderUI({
-    if(is.null(upset_data()) == T){
+    if(is.null(upset_data_filtered()) == T){
       h5("There is no data entered. Please upload your data to draw UpSet plot here!")
     }
     else{
@@ -401,15 +468,9 @@ shinyServer(function(input, output, session) {
   })
   
   upset_data_excel <- eventReactive(input$update_tbl_upset,{
-    input_type <- input$upset_input_type
     if (!is.null(input$hot_upset)) {
       data = excel_to_R(input$hot_upset)
-      if (input_type == 'list'){
-        data <- lapply(data, function(x) x[!myisna(x)])
-      } else if (input_type == 'binary'){
-        data <- data[!myisna(data[,1]),]
-        data <- lapply(data[,-1,drop=F], function(x) as.character(data[,1][x>0]))
-      }
+      data <- lapply(data, function(x) x[!myisna(x)])
       fromList(data)
     } else {
       data.frame()
@@ -422,74 +483,48 @@ shinyServer(function(input, output, session) {
     string <- input$comb_upset
     string <- gsub("\n", "", string)
     input_type <- input$upset_input_type
-
-    if(string != ""){
-      string <- as.list(unlist(strsplit(string, ",")))
-      names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
-      names <- unlist(lapply(names, function(x){x <- gsub(" ", "", x)}))
-      values <- as.numeric(unlist(lapply(string, function(x){x <- unlist(strsplit(x,"=")); x <- x[2]})))
-      names(values) <- names
-      data <- fromExpression(values)
-    } else if(is.null(inFile) == F){
-      if (input_type == 'list'){
-        data <- read_delim(inFile$datapath, input$sep_upset , escape_double = FALSE, trim_ws = TRUE, col_names = input$header_upset)
-        if (input$sep_row_upset != "No")
-        {
-          data <- lapply(data, function(x) unique(unlist(strsplit(x,input$sep_row_upset))))
-        }
-        data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
-      } else if (input_type == 'binary'){
-        thequote <- input$quote
-        if(thequote == "No")
-        {
-          thequote <- ""
-        }
-        data <- read.csv(inFile$datapath, header = input$header_upset,
-                         sep = input$sep_upset, quote = thequote, row.names = NULL)
-        data <- data[!myisna(data[,1]),]
-      }
-    } else if (nrow(upset_data_excel())) {
-      data <- upset_data_excel()
-    }else{
-      data<- fromExpression(c('H3K4me2&H3K4me3'=1632,'H3K4me2&H3K4me3&H3K27me3'=575,'H3K27me3'=2517,'H3K4me3&H3K27me3'=1553,'H3K4me3'=3296,'H3K4me2&H3K27me3'=1903,'H3K4me2'=6029,'H3K27ac&H3K4me2&H3K4me3&H3K27me3'=723,'H3K27ac&H3K4me2&H3K4me3'=1750,'H3K27ac&H3K4me2'=2134,'H3K27ac&H3K4me2&H3K27me3'=169,'H3K27ac&H3K4me3'=813,'H3K27ac&H3K4me3&H3K27me3'=29,'H3K27ac&H3K27me3'=760,'H3K27ac'=4216))
-    }
+    
+    data <- Univ_reader(input_type,inFile,string,input$sep_upset,input$header_upset,input$sep_row_upset,input$quote_upset,upset_data_excel(),example="exp")
     return(data)
   })
   
-  FindStartEnd <- function(data){
-    startend <- c()
-    for(i in 1:ncol(data)){
-      column <- data[, i]
-      column <- (levels(factor(column)))
-      if((column[1] == "0") && (column[2] == "1" && (length(column) == 2))){
-        startend[1] <- i
-        break
-      }
-      else{
-        next
-      }
+  set_names_upset <- reactive({
+    data <- upset_data()
+    names0 <- as.character(names(data))
+    if (input$upset_input_type == 'binary') {
+      notbin <- apply(data,2,function(x)any(!x %in% c(0,1)))
+      nameother <- names0[notbin]
+      names0 <- names0[!notbin]
+    } else {
+      names0 <- names0[names0 != "Rowname"]
+      nameother <- c("Rowname")
     }
-    for(i in ncol(data):1){
-      column <- data[ ,i]
-      column <- (levels(factor(column)))
-      if((column[1] == "0") && (column[2] == "1") && (length(column) == 2)){
-        startend[2] <- i
-        break
-      }
-      else{
-        next
-      }
-    }
-    return(startend)
-  }
+    return(list(names0,nameother))
+  })
   
-  startEnd <- reactive({
-    startEnd <- FindStartEnd(upset_data())
+  output$rowname_upset <- renderUI({
+    if (input$upset_input_type == 'binary') {
+      sets_upset <- selectInput('rowname_upset', label = "Rowname for binary data",
+                                choices = set_names_upset()[[2]],
+                                multiple = F, selected = set_names_upset()[[2]][1])
+    } else {
+      sets_upset <- NULL
+    }
+    return(sets_upset)
+  })
+  
+  output$sets_upset <- renderUI({
+    goodname <- set_names_upset()[[1]]
+    goodnamesel <- goodname[1:3]
+    sets_upset <- selectInput('sets_upset', label = "Select sets",
+                              choices = goodname,
+                              multiple = T, selectize = T, selected = goodnamesel)
+    return(sets_upset)
   })
   
   setSizes <- reactive({
     if(is.null(upset_data()) != T){
-      sizes <- colSums(upset_data()[startEnd()[1]:startEnd()[2]])
+      sizes <- colSums(upset_data()[,set_names_upset()[[1]]])
       sizes <- sizes[order(sizes, decreasing = T)]
       names <- names(sizes); sizes <- as.numeric(sizes);
       maxchar <- max(nchar(names))
@@ -517,27 +552,75 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  Specific_sets <- reactive({
-    Specific_sets <- as.character(c(input$upset_sets))
+  selected_names_upset <- reactive({
+    selected_names_upset <- as.character(c(input$upset_sets))
   })
   
   output$sets_upset <- renderUI({
     if(is.null(upset_data()) == T){
       sets <-  selectInput('upset_sets', label="Select at least two sets ",
                            choices = NULL,
-                           multiple=TRUE, selectize=TRUE, selected = Specific_sets())
-    }
-    else{
-      data <- upset_data()[startEnd()[1]:startEnd()[2]]
+                           multiple=TRUE, selectize=TRUE, selected = selected_names_upset())
+    } else {
+      data <- upset_data()[,set_names_upset()[[1]]]
       topfive <- colSums(data)
       topfive <- as.character(head(names(topfive[order(topfive, decreasing = T)]), 5))
       sets <- selectInput('upset_sets', label="Select sets ",
-                          choices = as.character(colnames(upset_data()[ , startEnd()[1]:startEnd()[2]])),
+                          choices = set_names_upset()[[1]],
                           multiple=TRUE, selectize=TRUE, selected = topfive)
     }
     return(sets)
   })
   
+  upset_data_filtered <- reactive({
+    sep_row_ <- input$sep_row_upset
+    dedup <- input$dedup_upset   
+    data <- upset_data() # df
+    rowname_upset <- input$rowname_upset
+    
+    i_rowname_upset <- 1
+
+    if (input$upset_input_type == 'binary' && is.data.frame(data)) {
+      
+      if(!is.null(rowname_upset)){
+        i_rowname_upset <- which(names(data) == rowname_upset)
+      }
+      data <- data[!myisna(data[,i_rowname_upset]),]
+    }
+    
+    if(is.null(input$upset_sets)){
+      thenames <- set_names_upset()[[1]][1:3]
+    }else{
+      thenames <- c(selected_names_upset())
+    }
+    data <- data.frame(Rowname=data[,i_rowname_upset],data[,names(data) %in% thenames])
+    
+    
+    if (sep_row_ != "No")
+    {
+      aa <- data.frame(
+        do.call(rbind,
+                apply(data, 1, function(x) {
+                  do.call(expand.grid, list(strsplit(x, sep_row_),stringsAsFactors = FALSE))
+                })
+        ))
+      data <- as.data.frame(mapply(FUN = as,aa,sapply(data,class),SIMPLIFY = FALSE))
+    }
+    
+    if (dedup)
+    {
+      touse4mean <- data[,-1]
+      itouse4mean <- apply(touse4mean,1,is.numeric)
+      themean <- apply(touse4mean[,itouse4mean],1,sum)
+      genes <- data[,1]
+      theorder <- order(themean,decreasing=T)
+      genes <- genes[theorder]
+      data <- data[theorder,]
+      data <- data[ave(as.character(genes),as.character(genes),FUN=seq_along) == 1,]
+    }  
+    
+    return(data)
+  })
   
   mat_prop <- reactive({
     mat_prop <- input$mbratio
@@ -632,15 +715,15 @@ shinyServer(function(input, output, session) {
   # A plot of fixed size
   output$plot1 <- renderPlot({
     
-    if(length(upset_data()) == 0){stop()}
-    if(length(Specific_sets()) == 1){
+    if(length(upset_data_filtered()) == 0){stop()}
+    if(length(selected_names_upset()) == 1){
       stop()
     }
-    upset(data = upset_data(), 
+    upset(data = upset_data_filtered(), 
           nintersects = input$nintersections,
           point.size = input$pointsize,
           line.size = line_size(),
-          sets = Specific_sets(),
+          sets = selected_names_upset(),
           order.by = orderdat(),
           main.bar.color= main_bar_color(),
           sets.bar.color= sets_bar_color(),
@@ -679,28 +762,27 @@ shinyServer(function(input, output, session) {
       else
         pdf(file, width = width/100, height = height/100, onefile=FALSE)
       
-      print(upset(data = upset_data(), 
-                  nintersects = input$nintersections,
-                  point.size = input$pointsize,
-                  line.size = line_size(),
-                  
-                  sets = Specific_sets(),
-                  order.by = orderdat(),
-                  main.bar.color= main_bar_color(),
-                  sets.bar.color= sets_bar_color(),
-                  decreasing = c(decrease()),
-                  number.angles = number_angle(),
-                  show.numbers = show_numbers(),
-                  scale.intersections = scale.intersections(),
-                  scale.sets = scale.sets(),
-                  keep.order = keep.order(),
-                  mb.ratio = c(as.double(bar_prop()), as.double(mat_prop())),
-                  empty.intersections = emptyIntersects(),
-                  text.scale = c(input$intersection_title_scale, input$intersection_ticks_scale,
-                                 input$set_title_scale, input$set_ticks_scale, input$names_scale,
-                                 input$intersection_size_numbers_scale))
+      base::print(upset(data = upset_data_filtered(), 
+                        nintersects = input$nintersections,
+                        point.size = input$pointsize,
+                        line.size = line_size(),
+                        sets = selected_names_upset(),
+                        order.by = orderdat(),
+                        main.bar.color= main_bar_color(),
+                        sets.bar.color= sets_bar_color(),
+                        decreasing = c(decrease()),
+                        show.numbers = show_numbers(),
+                        number.angles = number_angle(),
+                        scale.intersections = scale.intersections(),
+                        scale.sets = scale.sets(),
+                        keep.order = keep.order(),
+                        mb.ratio = c(as.double(bar_prop()), as.double(mat_prop())),
+                        empty.intersections = emptyIntersects(),
+                        text.scale = c(input$intersection_title_scale, input$intersection_ticks_scale,
+                                       input$set_title_scale, input$set_ticks_scale, input$names_scale,
+                                       input$intersection_size_numbers_scale)
       )
-      
+      )
       dev.off()
     }
   )
@@ -710,7 +792,7 @@ shinyServer(function(input, output, session) {
       paste("UpSet", tolower(input$filetype_upset_excel), "csv", sep =".")
     }, 
     content = function(file){
-      data <- upset_data()
+      data <- upset_data_filtered()
       #browser()
       if(input$filetype_upset_excel == "Freq"){
         data <- Counter(data)

@@ -1,18 +1,57 @@
 options(shiny.maxRequestSize=1000*1024^2)
 
+options(java.parameters = "-Xss2048k")
 libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,d3heatmap,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr,excelR,reshape2"
 libs <- unlist(strsplit(libs,","))
 req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
 need<-libs[req==FALSE]
-if(length(need)>0){ 
-  install.packages(need)
-  lapply(need,require,character.only=TRUE)
-}
-#BiocManager::install(c("RBGL","caTools"))
-#devtools::install_github("js229/Vennerable")
-#devtools::install_github("talgalili/d3heatmap")
 
-#devtools::install_github("jrowen/rhandsontable")
+if (0){
+  if(length(need)>0){
+    if ("connectapi" %in% need){
+      remotes::install_github("rstudio/connectapi")
+    }
+    req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
+    need<-libs[req==FALSE]
+    install.packages(need,repos = "http://cran.us.r-project.org")
+    lapply(need,require,character.only=TRUE)
+  }
+} else {
+  if (!require("BiocManager", quietly = TRUE)){
+    install.packages("BiocManager")
+    
+  }
+  BiocManager::install("BiocGenerics")
+  if (!suppressPackageStartupMessages(require("d3heatmap",character.only=TRUE))){
+    remotes::install_github("talgalili/d3heatmap",dep = FALSE)
+  }
+
+  print(need)
+  #BiocManager::install(c("RBGL","caTools"))
+  #install_github("js229/Vennerable")
+  
+  library(excelR)
+  library(graph)
+  library(RColorBrewer)
+  library(htmlwidgets)
+  library(gplots)
+  library(dendextend)
+  library(shiny)
+  library(shinydashboard)
+  library(DT)
+  #library(d3heatmap)
+  library(plotly)
+  library(ggplot2)
+  library(gridExtra)
+  library(plyr)
+  library(UpSetR)
+  library(colourpicker)
+  library(corrplot)
+  library(BBmisc)
+  library(readr)
+  library(excelR)
+  library(reshape2)
+}
 
 source("pairwise_intersect.R")
 

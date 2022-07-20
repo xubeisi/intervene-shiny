@@ -7,6 +7,7 @@ req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,ch
 need<-libs[req==FALSE]
 
 if (0){
+if (0){
   if(length(need)>0){
     if ("connectapi" %in% need){
       remotes::install_github("rstudio/connectapi")
@@ -51,6 +52,7 @@ if (0){
   library(readr)
   library(excelR)
   library(reshape2)
+}
 }
 
 source("pairwise_intersect.R")
@@ -454,23 +456,21 @@ shinyServer(function(input, output, session) {
       #width  <- session$clientData$output_plot_width
       #height <- ((session$clientData$output_plot_height)*1)
       #pixelratio <- session$clientData$pixelratio
-      pixelratio <- 2
+      pixelratio <- 1
+      pixeldiv <- 72
       
       if(input$filetype_venn == "PNG")
         png(file, width=width*pixelratio, height=height*pixelratio, units = "px", res=72*pixelratio)
       else if(input$filetype_venn == "SVG")
-        svg(file, width=8, height=8)
+        svg(file, width=width/pixeldiv, height=height/pixeldiv)
       else if(input$filetype_venn == "TIFF")
         tiff(file, width=width*pixelratio, height=height*pixelratio, units = "px")
       else
-        pdf(file, width = 8, height = 8)
+        pdf(file, width=width/pixeldiv, height=height/pixeldiv)
       
-      plot(venn_combinations(),
-           doWeights = doWeights(),
-           type = get_venn_type(),
-           doEuler = doEuler(),
+      plot(compute.Venn(venn_combinations(), doWeights = doWeights(), doEuler = doEuler(), type = get_venn_type()),
+           gp = get_venn_gp(),
            show = list(Universe = FALSE)
-           #venn_type()
       )
       dev.off()
     }

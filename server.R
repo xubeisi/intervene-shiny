@@ -1,35 +1,32 @@
 options(shiny.maxRequestSize=1000*1024^2)
 
 options(java.parameters = "-Xss2048k")
-libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,d3heatmap,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr,excelR,reshape2"
+libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,d3heatmap,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr,excelR,reshape2,RBGL,caTools"
 libs <- unlist(strsplit(libs,","))
 req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
 need<-libs[req==FALSE]
 
+print(need)
+
 if (0){
-if (0){
-  if(length(need)>0){
-    if ("connectapi" %in% need){
-      remotes::install_github("rstudio/connectapi")
-    }
-    req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
-    need<-libs[req==FALSE]
-    install.packages(need,repos = "http://cran.us.r-project.org")
-    lapply(need,require,character.only=TRUE)
+  if ("pak" %in% need){
+    install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
   }
-} else {
+  options(install.packages.check.source = "no")
+
+  for (lib in need) { pak::pkg_install(lib,ask = FALSE) }
+  
   if (!require("BiocManager", quietly = TRUE)){
     install.packages("BiocManager")
     
   }
   BiocManager::install("BiocGenerics")
-  if (!suppressPackageStartupMessages(require("d3heatmap",character.only=TRUE))){
+  if (!"d3heatmap" %in% need){
     remotes::install_github("talgalili/d3heatmap",dep = FALSE)
   }
-
-  print(need)
-  #BiocManager::install(c("RBGL","caTools"))
-  #install_github("js229/Vennerable")
+  if (!"Vennerable" %in% need){
+    remotes::install_github("js229/Vennerable",dep = FALSE)
+  }
   
   library(excelR)
   library(graph)
@@ -52,7 +49,6 @@ if (0){
   library(readr)
   library(excelR)
   library(reshape2)
-}
 }
 
 source("pairwise_intersect.R")

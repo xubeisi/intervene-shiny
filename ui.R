@@ -78,7 +78,7 @@ bodyVenn <- tabItem(tabName = "venn",
                                       radioButtons('venn_input_type',
                                                    label ='Input type ',
                                                    choices = c(
-                                                     "List of Genes/SNPs" = 'list',
+                                                     "List of Genes/SNPs or .gmt" = 'list',
                                                      "Binary data (0 & 1)" = 'binary'
                                                    ),
                                                    selected = 'list'
@@ -291,7 +291,7 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                     radioButtons('upset_input_type',
                                                  label ='Input type ',
                                                  choices = c(
-                                                   "List of Genes/SNPs" = 'list',
+                                                   "List of Genes/SNPs or .gmt" = 'list',
                                                    "Binary data (0 & 1)" = 'binary'
                                                  ),
                                                  selected = 'list'
@@ -560,7 +560,7 @@ bodyPairwise <- tabItem(tabName = "pairwise",
                                                        label ='Input type ',
                                                        choices = c(
                                                          "Matrix" = 'matrix',
-                                                         "List of Genes/SNPs" = 'list'
+                                                         "List of Genes/SNPs or .gmt" = 'list'
                                                        ),
                                                        selected = 'matrix'
                                           ),

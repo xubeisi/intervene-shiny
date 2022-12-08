@@ -6,7 +6,7 @@ libs <- unlist(strsplit(libs,","))
 req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
 need<-libs[req==FALSE]
 
-print(need)
+base::print(need)
 
 if (0){
   if ("pak" %in% need){
@@ -123,6 +123,16 @@ Counter <- function(data, empty_intersects = FALSE){
   return(Freqs)
 }
 
+read.gmt = function(file){ #https://rdrr.io/bioc/qusage/src/R/qusage.R
+  if(!grepl("\\.gmt$",file)[1]){stop("Pathway information must be a .gmt file")}
+  geneSetDB = readLines(file)                                ##read in the gmt file as a vector of lines
+  geneSetDB = strsplit(geneSetDB,"\t")                       ##convert from vector of strings to a list
+  names(geneSetDB) = sapply(geneSetDB,"[",1)                 ##move the names column as the names of the list
+  geneSetDB = lapply(geneSetDB, "[",-1:-2)                   ##remove name and description columns
+  geneSetDB = lapply(geneSetDB, function(x){x[which(x!="")]})##remove empty strings
+  return(geneSetDB)
+}
+
 Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,dataread,dedup=TRUE,example="exp"){
   if(string != ""){
     string <- as.list(unlist(strsplit(string, ",")))
@@ -136,10 +146,14 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
     }
   } else if(is.null(inFile) == F){
     if (input_type == 'list'){
-      data <- read_delim(inFile$datapath, sep_ , escape_double = FALSE, trim_ws = TRUE, col_names = header_)
-      if (sep_row_ != "No")
-      {
-        data <- lapply(data, function(x) unique(unlist(strsplit(x,sep_row_))))
+      if (grepl("\\.gmt$",inFile$datapath)[1]){
+        data <- read.gmt(inFile$datapath)
+      } else {
+        data <- read_delim(inFile$datapath, sep_ , escape_double = FALSE, trim_ws = TRUE, col_names = header_)
+        if (sep_row_ != "No")
+        {
+          data <- lapply(data, function(x) unique(unlist(strsplit(x,sep_row_))))
+        }
       }
       data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
     } else if (input_type == 'binary'){
@@ -151,7 +165,7 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
                        sep = sep_, quote = thequote, row.names = NULL)
     }
   } else if (nrow(dataread)) {
-    browser()
+    #browser()
     data <- dataread
   }else{
     if(example == "exp"){

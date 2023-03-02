@@ -97,7 +97,8 @@ bodyVenn <- tabItem(tabName = "venn",
                                                          )
                                                        )),
                                       conditionalPanel(condition = "input.venn_input_type == 'local'",
-                                                       htmlOutput("ggg_local_data_venn")                 
+                                                       htmlOutput("ggg_local_data_venn"),
+                                                       textInput("dirinputsecret_venn", "Secret", ""),
                                       ),
                                       fluidRow(
                                         column(2,
@@ -315,7 +316,7 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                                        )
                                                      )),
                                     conditionalPanel(condition = "input.upset_input_type == 'local'",
-                                                     htmlOutput("ggg_local_data_upset")                 
+                                                     htmlOutput("ggg_local_data_upset")
                                     ),
                                     fluidRow(
                                       column(2,
@@ -588,7 +589,8 @@ bodyPairwise <- tabItem(tabName = "pairwise",
                                                              )
                                                            )),
                                           conditionalPanel(condition = "input.pairwise_input_type == 'local'",
-                                                           htmlOutput("ggg_local_data_pairwise")                 
+                                                           htmlOutput("ggg_local_data_pairwise"),
+                                                           textInput("dirinputsecret_pairwise", "Secret", "")
                                           ),
                                           checkboxInput('header_p', label = 'Header', TRUE),
                                           radioButtons(

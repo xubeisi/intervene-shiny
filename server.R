@@ -860,7 +860,22 @@ shinyServer(function(input, output, session) {
   )
   
   localdata <- reactive({
-    ff <- "local.lst"
+    input$dirinputsecret_venn
+    input$dirinputsecret_upset
+    input$dirinputsecret_pairwise
+    ddd <- ""
+    if (!is.null(input$dirinputsecret_venn)){
+      ddd <- input$dirinputsecret_venn
+    } else if (!is.null(input$dirinputsecret_upset)){
+      ddd <- input$dirinputsecret_upset
+    } else if (!is.null(input$dirinputsecret_pairwise)){
+      ddd <- input$dirinputsecret_pairwise
+    }
+    if (nchar(ddd)){
+      ff <- file.path(getwd(),"data",paste(ddd,"lst",sep="."))  
+    } else {
+      ff <- file.path(getwd(),"locals.lst")  
+    }
     if (file.exists(ff)){
       gtmp <- read.table(ff,header=FALSE)$V1
     } else { gtmp <- c() }

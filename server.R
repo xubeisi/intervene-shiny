@@ -1,7 +1,7 @@
 options(shiny.maxRequestSize=1000*1024^2)
 
 options(java.parameters = "-Xss2048k")
-libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,d3heatmap,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr,excelR,reshape2,RBGL,caTools"
+libs <- "excelR,graph,RColorBrewer,htmlwidgets,gplots,dendextend,shiny,shinydashboard,DT,plotly,ggplot2,gridExtra,plyr,UpSetR,colourpicker,corrplot,BBmisc,readr,excelR,reshape2,RBGL,caTools,remotes,d3heatmap,Vennerable"
 libs <- unlist(strsplit(libs,","))
 req<-unlist( lapply(libs,function(p) suppressPackageStartupMessages(require(p,character.only=TRUE)) ) )
 need<-libs[req==FALSE]
@@ -21,10 +21,10 @@ if (0){
     
   }
   BiocManager::install("BiocGenerics")
-  if (!"d3heatmap" %in% need){
+  if ("d3heatmap" %in% need){
     remotes::install_github("talgalili/d3heatmap",dep = FALSE)
   }
-  if (!"Vennerable" %in% need){
+  if ("Vennerable" %in% need){
     remotes::install_github("js229/Vennerable",dep = FALSE)
   }
   
@@ -133,7 +133,7 @@ read.gmt = function(file){ #https://rdrr.io/bioc/qusage/src/R/qusage.R
   return(geneSetDB)
 }
 
-Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,dataread,dedup=TRUE,example="exp"){
+Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,dataread,dedup=TRUE,example="exp",inputfile_local=NULL){
   if(string != ""){
     string <- as.list(unlist(strsplit(string, ",")))
     names <- lapply(string, function(x){x <- unlist(strsplit(x, "=")); x <- x[1]})
@@ -144,7 +144,7 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
     if(!"Rowname" %in% names(data)){
       data <- data.frame(Rowname=row.names(data),data)      
     }
-  } else if(is.null(inFile) == F){
+  } else if(is.null(inFile) == F || input_type %in% c('local')){
     if (input_type == 'list'){
       if (grepl("\\.gmt$",inFile$datapath)[1]){
         data <- read.gmt(inFile$datapath)
@@ -156,12 +156,18 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
         }
       }
       data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
-    } else if (input_type == 'binary'){
+    } else if (input_type %in% c('binary','local')){
       if(thequote == "No")
       {
         thequote <- ""
       }
-      data <- read.csv(inFile$datapath, header = header_,
+      browser()
+      if (input_type %in% c('local') && !is.null(inputfile_local)){
+        ftoread <- inputfile_local
+      } else {
+        ftoread <- inFile$datapath
+      }
+      data <- read.csv(ftoread, header = header_,
                        sep = sep_, quote = thequote, row.names = NULL)
     }
   } else if (nrow(dataread)) {
@@ -288,10 +294,11 @@ shinyServer(function(input, output, session) {
   venn_data <- reactive({
     inFile <- input$file_venn
     string <- input$venn_comb
+    inputfile_local <- input$inputfile_local
     string <- gsub("\n", "", string)
     input_type <- input$venn_input_type
     
-    data <- Univ_reader(input_type,inFile,string,input$sep_venn,input$header_venn,input$sep_row_venn,input$quote_venn,venn_data_excel(),example="gene")
+    data <- Univ_reader(input_type,inFile,string,input$sep_venn,input$header_venn,input$sep_row_venn,input$quote_venn,venn_data_excel(),example="gene",inputfile_local=inputfile_local)
     return(data)
   })
   
@@ -530,10 +537,11 @@ shinyServer(function(input, output, session) {
   upset_data <- reactive({  
     inFile <- input$file_upset
     string <- input$comb_upset
+    inputfile_local <- input$inputfile_local
     string <- gsub("\n", "", string)
     input_type <- input$upset_input_type
     
-    data <- Univ_reader(input_type,inFile,string,input$sep_upset,input$header_upset,input$sep_row_upset,input$quote_upset,upset_data_excel(),example="exp")
+    data <- Univ_reader(input_type,inFile,string,input$sep_upset,input$header_upset,input$sep_row_upset,input$quote_upset,upset_data_excel(),example="exp",inputfile_local=inputfile_local)
     return(data)
   })
   
@@ -851,6 +859,31 @@ shinyServer(function(input, output, session) {
       write.table(data.frame("Row"=row.names(data),data,check.names = FALSE),file,na = "",sep=",",row.names = FALSE)
     }
   )
+  
+  localdata <- reactive({
+    ff <- "local.lst"
+    if (file.exists(ff)){
+      gtmp <- read.table(ff,header=FALSE)$V1
+    } else { gtmp <- c() }
+    gtmp <- as.character(gtmp)
+    if (length(gtmp) > 0){
+      ggg_symbol_choices <- selectInput('inputfile_local', label = "Local Data",
+                                        choices = gtmp, multiple = F, selected = gtmp[1])
+    } else {
+      ggg_symbol_choices <- NULL
+    }
+    return(ggg_symbol_choices)
+  })
+  
+  output$ggg_local_data_venn <- renderUI({
+    return(localdata())
+  })
+  output$ggg_local_data_upset <- renderUI({
+    return(localdata())
+  })
+  output$ggg_local_data_pairwise <- renderUI({
+    return(localdata())
+  })
   
   #====================================================#
   ## Pairwise module ####

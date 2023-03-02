@@ -79,20 +79,25 @@ bodyVenn <- tabItem(tabName = "venn",
                                                    label ='Input type ',
                                                    choices = c(
                                                      "List of Genes/SNPs or .gmt" = 'list',
-                                                     "Binary data (0 & 1)" = 'binary'
+                                                     "Binary data (0 & 1)" = 'binary',
+                                                     "LocalData" = 'local'
                                                    ),
                                                    selected = 'list'
                                       ),
-                                      fileInput(
-                                        'file_venn',
-                                        label = "Upload file or Paste below",
-                                        accept = c(
-                                          'text/csv',
-                                          'text/comma-separated-values',
-                                          'text/tab-separated-values',
-                                          '.csv',
-                                          '.tsv'
-                                        )
+                                      conditionalPanel(condition = "input.venn_input_type != 'local'",
+                                                       fileInput(
+                                                         'file_venn',
+                                                         label = "Upload file or Paste below",
+                                                         accept = c(
+                                                           'text/csv',
+                                                           'text/comma-separated-values',
+                                                           'text/tab-separated-values',
+                                                           '.csv',
+                                                           '.tsv'
+                                                         )
+                                                       )),
+                                      conditionalPanel(condition = "input.venn_input_type == 'local'",
+                                                       htmlOutput("ggg_local_data_venn")                 
                                       ),
                                       fluidRow(
                                         column(2,
@@ -292,20 +297,25 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                                  label ='Input type ',
                                                  choices = c(
                                                    "List of Genes/SNPs or .gmt" = 'list',
-                                                   "Binary data (0 & 1)" = 'binary'
+                                                   "Binary data (0 & 1)" = 'binary',
+                                                   "LocalData" = 'local'
                                                  ),
                                                  selected = 'list'
                                     ),
-                                    fileInput(
-                                      'file_upset',
-                                      label = "Upload file or Paste below",
-                                      accept = c(
-                                        'text/csv',
-                                        'text/comma-separated-values',
-                                        'text/tab-separated-values',
-                                        '.csv',
-                                        '.tsv'
-                                      )
+                                    conditionalPanel(condition = "input.upset_input_type != 'local'",
+                                                     fileInput(
+                                                       'file_upset',
+                                                       label = "Upload file or Paste below",
+                                                       accept = c(
+                                                         'text/csv',
+                                                         'text/comma-separated-values',
+                                                         'text/tab-separated-values',
+                                                         '.csv',
+                                                         '.tsv'
+                                                       )
+                                                     )),
+                                    conditionalPanel(condition = "input.upset_input_type == 'local'",
+                                                     htmlOutput("ggg_local_data_upset")                 
                                     ),
                                     fluidRow(
                                       column(2,
@@ -560,20 +570,25 @@ bodyPairwise <- tabItem(tabName = "pairwise",
                                                        label ='Input type ',
                                                        choices = c(
                                                          "Matrix" = 'matrix',
-                                                         "List of Genes/SNPs or .gmt" = 'list'
+                                                         "List of Genes/SNPs or .gmt" = 'list',
+                                                         "LocalData" = 'local'
                                                        ),
                                                        selected = 'matrix'
                                           ),
-                                          fileInput(
-                                            'file_p',
-                                            label = "Upload file",
-                                            accept = c(
-                                              'text/csv',
-                                              'text/comma-separated-values',
-                                              'text/tab-separated-values',
-                                              '.csv',
-                                              '.tsv'
-                                            )
+                                          conditionalPanel(condition = "input.pairwise_input_type != 'local'",
+                                                           fileInput(
+                                                             'file_p',
+                                                             label = "Upload file",
+                                                             accept = c(
+                                                               'text/csv',
+                                                               'text/comma-separated-values',
+                                                               'text/tab-separated-values',
+                                                               '.csv',
+                                                               '.tsv'
+                                                             )
+                                                           )),
+                                          conditionalPanel(condition = "input.pairwise_input_type == 'local'",
+                                                           htmlOutput("ggg_local_data_pairwise")                 
                                           ),
                                           checkboxInput('header_p', label = 'Header', TRUE),
                                           radioButtons(

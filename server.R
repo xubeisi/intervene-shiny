@@ -161,7 +161,6 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
       {
         thequote <- ""
       }
-      browser()
       if (input_type %in% c('local') && !is.null(inputfile_local)){
         ftoread <- inputfile_local
       } else {

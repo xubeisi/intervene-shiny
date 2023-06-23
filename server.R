@@ -166,8 +166,20 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
       } else {
         ftoread <- inFile$datapath
       }
-      data <- read.csv(ftoread, header = header_,
-                       sep = sep_, quote = thequote, row.names = NULL)
+      if (grepl("\\.gmt$",ftoread)[1]){
+        data <- read.gmt(ftoread)
+        data <- fromList(lapply(as.list(data), function(x) x[!myisna(x)]))
+      } else {
+        data <- read.csv(ftoread, header = header_,
+                         sep = sep_, quote = thequote, row.names = NULL)
+      }
+      nms_cont <- names(Filter(function(x) is.integer(x) ||
+                                 is.numeric(x) ||
+                                 is.double(x),
+                               data))
+      for (nms in nms_cont){
+        data[[nms]] <- as.integer(data[[nms]] > 0)
+      }
     }
   } else if (nrow(dataread)) {
     #browser()

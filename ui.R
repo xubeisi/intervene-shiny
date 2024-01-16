@@ -316,7 +316,8 @@ bodyUpSet <- tabItem(tabName = "upset", value="upset_plot",
                                                        )
                                                      )),
                                     conditionalPanel(condition = "input.upset_input_type == 'local'",
-                                                     htmlOutput("ggg_local_data_upset")
+                                                     htmlOutput("ggg_local_data_upset"),
+                                                     textInput("dirinputsecret_upset", "Secret", "")
                                     ),
                                     fluidRow(
                                       column(2,

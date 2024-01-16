@@ -142,7 +142,7 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
     names(values) <- names
     data <- fromExpression(values)
     if(!"Rowname" %in% names(data)){
-      data <- data.frame(Rowname=row.names(data),data)      
+      data <- data.frame(Rowname=row.names(data),data)
     }
   } else if(is.null(inFile) == F || input_type %in% c('local')){
     if (input_type == 'list'){
@@ -180,9 +180,9 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
       for (nms in nms_cont){
         data[[nms]] <- as.integer(data[[nms]] > 0)
       }
+      names(data) <- gsub("/research_jude/rgs01_jude/groups/|projects/|common/","",names(data))
     }
   } else if (nrow(dataread)) {
-    #browser()
     data <- dataread
   }else{
     if(example == "exp"){
@@ -316,7 +316,7 @@ shinyServer(function(input, output, session) {
   set_names_venn <- reactive({
     data <- venn_data()
     names0 <- as.character(names(data))
-    if (input$venn_input_type == 'binary') {
+    if (input$venn_input_type %in% c('binary','local')){
       notbin <- apply(data,2,function(x)any(!x %in% c(0,1)))
       nameother <- names0[notbin]
       names0 <- names0[!notbin]
@@ -328,7 +328,7 @@ shinyServer(function(input, output, session) {
   })
   
   output$rowname_venn <- renderUI({
-    if (input$venn_input_type == 'binary') {
+    if (input$venn_input_type %in% c('binary','local')){
       sets_venn <- selectInput('rowname_venn', label = "Rowname for binary data",
                                choices = set_names_venn()[[2]],
                                multiple = F, selected = set_names_venn()[[2]][1])
@@ -357,7 +357,7 @@ shinyServer(function(input, output, session) {
     data <- venn_data() # bin w/ rowname
     
     i_rowname_venn <- 1
-    if (input$venn_input_type == 'binary' && is.data.frame(data)) {
+    if (input$venn_input_type %in% c('binary','local') && is.data.frame(data)){
       if(!is.null(input$rowname_venn)){
         i_rowname_venn <- which(names(data) == input$rowname_venn)
       }
@@ -423,8 +423,6 @@ shinyServer(function(input, output, session) {
     venn_gp$FaceText <- lapply(venn_gp$FaceText,function(x) {x$cex<-venn_cex(); return(x)})
     venn_gp$Set <- lapply(venn_gp$Set,function(x) {x$lwd<-venn_lwd(); return(x)})
     venn_gp$Set <- lapply(venn_gp$Set,function(x) {x$lty<-venn_lty(); return(x)})
-    
-    #browser()
     
     if (venn_color_type() == 'custom'){
       inputcolors <- c(set1_color(),set2_color(),set3_color(),set4_color(),set5_color(),set6_color(),set7_color(),set8_color(),set9_color(),set10_color())
@@ -559,7 +557,8 @@ shinyServer(function(input, output, session) {
   set_names_upset <- reactive({
     data <- upset_data()
     names0 <- as.character(names(data))
-    if (input$upset_input_type == 'binary') {
+    #browser()
+    if (input$upset_input_type %in% c('binary','local')){
       notbin <- apply(data,2,function(x)any(!x %in% c(0,1)))
       nameother <- names0[notbin]
       names0 <- names0[!notbin]
@@ -571,7 +570,7 @@ shinyServer(function(input, output, session) {
   })
   
   output$rowname_upset <- renderUI({
-    if (input$upset_input_type == 'binary') {
+    if (input$upset_input_type %in% c('binary','local')){
       sets_upset <- selectInput('rowname_upset', label = "Rowname for binary data",
                                 choices = set_names_upset()[[2]],
                                 multiple = F, selected = set_names_upset()[[2]][1])
@@ -648,8 +647,7 @@ shinyServer(function(input, output, session) {
     
     i_rowname_upset <- 1
 
-    if (input$upset_input_type == 'binary' && is.data.frame(data)) {
-      
+    if (input$upset_input_type %in% c('binary','local') && is.data.frame(data)){
       if(!is.null(rowname_upset)){
         i_rowname_upset <- which(names(data) == rowname_upset)
       }
@@ -861,7 +859,6 @@ shinyServer(function(input, output, session) {
     }, 
     content = function(file){
       data <- upset_data_filtered()
-      #browser()
       if(input$filetype_upset_excel == "Freq"){
         data <- Counter(data)
       } else if(input$filetype_upset_excel == "Combinations"){
@@ -875,15 +872,11 @@ shinyServer(function(input, output, session) {
     input$dirinputsecret_venn
     input$dirinputsecret_upset
     input$dirinputsecret_pairwise
-
+    
     ddd <- ""
-    if (!is.null(input$dirinputsecret_venn)){
-      ddd <- input$dirinputsecret_venn
-    } else if (!is.null(input$dirinputsecret_upset)){
-      ddd <- input$dirinputsecret_upset
-    } else if (!is.null(input$dirinputsecret_pairwise)){
-      ddd <- input$dirinputsecret_pairwise
-    }
+    trythem <- c(input$dirinputsecret_venn,input$dirinputsecret_upset,input$dirinputsecret_pairwise)
+    trythem <- trythem[!is.null(trythem) & (nchar(trythem) > 0)]
+    if (length(trythem)){ ddd <- names(which.max(sapply(trythem,nchar))) }
     if (nchar(ddd)){
       ff <- file.path(getwd(),"data",paste(ddd,"lst",sep="."))  
     } else {

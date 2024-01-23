@@ -180,7 +180,6 @@ Univ_reader <- function(input_type,inFile,string,sep_,header_,sep_row_,thequote,
       for (nms in nms_cont){
         data[[nms]] <- as.integer(data[[nms]] > 0)
       }
-      names(data) <- gsub("/research_jude/rgs01_jude/groups/|projects/|common/","",names(data))
     }
   } else if (nrow(dataread)) {
     data <- dataread
@@ -887,6 +886,7 @@ shinyServer(function(input, output, session) {
     } else { gtmp <- c() }
     gtmp <- as.character(gtmp)
     if (length(gtmp) > 0){
+      names(gtmp) <- gsub("/research_jude/rgs01_jude/groups/|projects/|common/","",gtmp)
       ggg_symbol_choices <- selectInput('inputfile_local', label = "Local Data",
                                         choices = gtmp, multiple = F, selected = gtmp[1])
     } else {
